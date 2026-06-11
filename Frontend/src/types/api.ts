@@ -1,0 +1,8 @@
+/** Standard API response shape (matches backend) */
+
+export interface ApiResponse<T = unknown> {
+  success: boolean
+  message: string
+  data?: T
+  errors?: Record<string, string>
+}
