@@ -4,7 +4,6 @@ import toast from 'react-hot-toast'
 import { HiOutlineBookOpen } from 'react-icons/hi'
 import { useAuth } from '@/context/AuthContext'
 
-/** Login page — foundation for JWT auth flow */
 export default function Login() {
   const { login } = useAuth()
   const navigate = useNavigate()
@@ -56,9 +55,14 @@ export default function Login() {
             />
           </div>
           <div>
-            <label htmlFor="password" className="mb-1 block text-sm font-medium text-slate-700">
-              Password
-            </label>
+            <div className="mb-1 flex items-center justify-between">
+              <label htmlFor="password" className="block text-sm font-medium text-slate-700">
+                Password
+              </label>
+              <Link to="/forgot-password" className="text-xs font-medium text-primary-600 hover:underline">
+                Forgot?
+              </Link>
+            </div>
             <input
               id="password"
               type="password"

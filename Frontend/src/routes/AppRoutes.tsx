@@ -2,12 +2,16 @@ import { Navigate, Route, Routes } from 'react-router-dom'
 import { DashboardLayout } from '@/components/layout/DashboardLayout'
 import Login from '@/pages/auth/Login'
 import Register from '@/pages/auth/Register'
+import ForgotPassword from '@/pages/auth/ForgotPassword'
+import ResetPassword from '@/pages/auth/ResetPassword'
 import Dashboard from '@/pages/Dashboard'
 import Students from '@/pages/Students'
 import Teachers from '@/pages/Teachers'
 import Attendance from '@/pages/Attendance'
 import Fees from '@/pages/Fees'
 import Reports from '@/pages/Reports'
+import Profile from '@/pages/Profile'
+import Settings from '@/pages/Settings'
 import { ProtectedRoute } from './ProtectedRoute'
 import { GuestRoute } from './GuestRoute'
 
@@ -31,6 +35,22 @@ export function AppRoutes() {
           </GuestRoute>
         }
       />
+      <Route
+        path="/forgot-password"
+        element={
+          <GuestRoute>
+            <ForgotPassword />
+          </GuestRoute>
+        }
+      />
+      <Route
+        path="/reset-password"
+        element={
+          <GuestRoute>
+            <ResetPassword />
+          </GuestRoute>
+        }
+      />
 
       <Route element={<ProtectedRoute />}>
         <Route element={<DashboardLayout />}>
@@ -41,8 +61,8 @@ export function AppRoutes() {
           <Route path="/fees" element={<Fees />} />
           <Route path="/reports" element={<Reports />} />
           <Route path="/analytics" element={<Reports />} />
-          <Route path="/settings" element={<div className="glass-card rounded-xl p-6 text-center text-slate-400"><p className="text-lg font-medium text-slate-600">Settings</p><p className="mt-1 text-sm">Coming soon</p></div>} />
-          <Route path="/profile" element={<div className="glass-card rounded-xl p-6 text-center text-slate-400"><p className="text-lg font-medium text-slate-600">Profile</p><p className="mt-1 text-sm">Coming soon</p></div>} />
+          <Route path="/settings" element={<Settings />} />
+          <Route path="/profile" element={<Profile />} />
           <Route path="*" element={<Navigate to="/dashboard" replace />} />
         </Route>
       </Route>
