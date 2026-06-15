@@ -5,8 +5,7 @@
 // Try Prisma Accelerate: https://pris.ly/cli/accelerate-init
 
 generator client {
-  provider = "prisma-client"
-  output   = "../src/generated/prisma"
+  provider = "prisma-client-js"
 }
 
 datasource db {
@@ -30,8 +29,18 @@ model School {
   students  Student[]
   teachers  Teacher[]
   classes   Class[]
-  fee_plans FeePlan[]
-  fees      Fee[]
+  fee_plans    FeePlan[]
+  fees         Fee[]
+  exams        Exam[]
+  timetable_entries TimetableEntry[]
+  transport_routes  TransportRoute[]
+  transport_assignments TransportAssignment[]
+  books        Book[]
+  book_issues  BookIssue[]
+  hostels      Hostel[]
+  room_assignments RoomAssignment[]
+  notices      Notice[]
+  messages     Message[]
 
   @@map("schools")
 }
@@ -49,6 +58,7 @@ model Admin {
   updated_at    DateTime @updatedAt
 
   password_reset_tokens PasswordResetToken[]
+  sent_messages         Message[]
 
   @@index([school_id])
   @@map("admins")
@@ -77,9 +87,11 @@ model Class {
   created_at DateTime @default(now())
   updated_at DateTime @updatedAt
 
-  students Student[]
-  teachers Teacher[]
-  fees     Fee[]
+  students          Student[]
+  teachers          Teacher[]
+  fees              Fee[]
+  exams             Exam[]
+  timetable_entries TimetableEntry[]
 
   @@unique([school_id, name, section])
   @@map("classes")
@@ -93,6 +105,7 @@ model Student {
   class           Class     @relation(fields: [class_id], references: [id], onDelete: Cascade)
   first_name      String
   last_name       String
+  roll_number     String?
   email           String?
   phone           String?
   parent_name     String?
@@ -106,8 +119,12 @@ model Student {
   created_at      DateTime  @default(now())
   updated_at      DateTime  @updatedAt
 
-  student_attendance StudentAttendance[]
-  fees               Fee[]
+  student_attendance    StudentAttendance[]
+  fees                  Fee[]
+  exam_results          ExamResult[]
+  transport_assignments TransportAssignment[]
+  book_issues           BookIssue[]
+  room_assignments      RoomAssignment[]
 
   @@index([school_id])
   @@index([class_id])
@@ -136,6 +153,7 @@ model Teacher {
   updated_at    DateTime  @updatedAt
 
   teacher_attendance TeacherAttendance[]
+  timetable_entries  TimetableEntry[]
 
   @@index([school_id])
   @@map("teachers")
@@ -184,6 +202,219 @@ model TeacherAttendance {
 
   @@unique([attendance_id, teacher_id])
   @@map("teacher_attendance")
+}
+
+model Exam {
+  id         String   @id @default(uuid())
+  school_id  String
+  school     School   @relation(fields: [school_id], references: [id], onDelete: Cascade)
+  class_id   String
+  class      Class    @relation(fields: [class_id], references: [id], onDelete: Cascade)
+  title      String
+  type       String   @default("midterm")
+  subject    String
+  date       DateTime
+  max_marks  Float
+  created_at DateTime @default(now())
+  updated_at DateTime @updatedAt
+
+  results ExamResult[]
+
+  @@index([school_id])
+  @@index([class_id])
+  @@map("exams")
+}
+
+model ExamResult {
+  id            String @id @default(uuid())
+  exam_id       String
+  exam          Exam   @relation(fields: [exam_id], references: [id], onDelete: Cascade)
+  student_id    String
+  student       Student @relation(fields: [student_id], references: [id], onDelete: Cascade)
+  marks_obtained Float
+  grade         String?
+
+  @@unique([exam_id, student_id])
+  @@map("exam_results")
+}
+
+model TimetableEntry {
+  id         String   @id @default(uuid())
+  school_id  String
+  school     School   @relation(fields: [school_id], references: [id], onDelete: Cascade)
+  class_id   String
+  class      Class    @relation(fields: [class_id], references: [id], onDelete: Cascade)
+  teacher_id String?
+  teacher    Teacher? @relation(fields: [teacher_id], references: [id], onDelete: SetNull)
+  day_of_week Int
+  subject    String
+  start_time String
+  end_time   String
+  room       String?
+  created_at DateTime @default(now())
+  updated_at DateTime @updatedAt
+
+  @@index([school_id])
+  @@index([class_id])
+  @@map("timetable_entries")
+}
+
+model TransportRoute {
+  id            String   @id @default(uuid())
+  school_id     String
+  school        School   @relation(fields: [school_id], references: [id], onDelete: Cascade)
+  route_name    String
+  vehicle_number String?
+  driver_name   String?
+  driver_phone  String?
+  created_at    DateTime @default(now())
+  updated_at    DateTime @updatedAt
+
+  assignments TransportAssignment[]
+
+  @@index([school_id])
+  @@map("transport_routes")
+}
+
+model TransportAssignment {
+  id          String   @id @default(uuid())
+  school_id   String
+  school      School   @relation(fields: [school_id], references: [id], onDelete: Cascade)
+  route_id    String
+  route       TransportRoute @relation(fields: [route_id], references: [id], onDelete: Cascade)
+  student_id  String
+  student     Student  @relation(fields: [student_id], references: [id], onDelete: Cascade)
+  pickup_point String?
+  pickup_time  String?
+  drop_time    String?
+  created_at  DateTime @default(now())
+
+  @@unique([route_id, student_id])
+  @@index([school_id])
+  @@map("transport_assignments")
+}
+
+model Book {
+  id            String   @id @default(uuid())
+  school_id     String
+  school        School   @relation(fields: [school_id], references: [id], onDelete: Cascade)
+  title         String
+  author        String
+  isbn          String?
+  publisher     String?
+  quantity      Int      @default(1)
+  available     Int      @default(1)
+  created_at    DateTime @default(now())
+  updated_at    DateTime @updatedAt
+
+  issues BookIssue[]
+
+  @@index([school_id])
+  @@map("books")
+}
+
+model BookIssue {
+  id         String    @id @default(uuid())
+  school_id  String
+  school     School    @relation(fields: [school_id], references: [id], onDelete: Cascade)
+  book_id    String
+  book       Book      @relation(fields: [book_id], references: [id], onDelete: Cascade)
+  student_id String
+  student    Student   @relation(fields: [student_id], references: [id], onDelete: Cascade)
+  issue_date DateTime  @default(now())
+  due_date   DateTime
+  return_date DateTime?
+  status     String    @default("issued")
+  created_at DateTime  @default(now())
+
+  @@index([school_id])
+  @@index([book_id])
+  @@index([student_id])
+  @@map("book_issues")
+}
+
+model Hostel {
+  id           String   @id @default(uuid())
+  school_id    String
+  school       School   @relation(fields: [school_id], references: [id], onDelete: Cascade)
+  name         String
+  warden_name  String?
+  warden_phone String?
+  total_rooms  Int      @default(0)
+  created_at   DateTime @default(now())
+  updated_at   DateTime @updatedAt
+
+  rooms Room[]
+
+  @@index([school_id])
+  @@map("hostels")
+}
+
+model Room {
+  id          String   @id @default(uuid())
+  hostel_id   String
+  hostel      Hostel   @relation(fields: [hostel_id], references: [id], onDelete: Cascade)
+  room_number String
+  capacity    Int      @default(2)
+  occupants   Int      @default(0)
+  created_at  DateTime @default(now())
+
+  assignments RoomAssignment[]
+
+  @@unique([hostel_id, room_number])
+  @@map("rooms")
+}
+
+model RoomAssignment {
+  id           String    @id @default(uuid())
+  school_id    String
+  school       School    @relation(fields: [school_id], references: [id], onDelete: Cascade)
+  room_id      String
+  room         Room      @relation(fields: [room_id], references: [id], onDelete: Cascade)
+  student_id   String
+  student      Student   @relation(fields: [student_id], references: [id], onDelete: Cascade)
+  check_in_date DateTime  @default(now())
+  check_out_date DateTime?
+  created_at   DateTime  @default(now())
+
+  @@unique([room_id, student_id])
+  @@index([school_id])
+  @@map("room_assignments")
+}
+
+model Notice {
+  id           String   @id @default(uuid())
+  school_id    String
+  school       School   @relation(fields: [school_id], references: [id], onDelete: Cascade)
+  title        String
+  content      String
+  category     String   @default("general")
+  posted_by    String?
+  attachment   String?
+  publish_date DateTime @default(now())
+  expiry_date  DateTime?
+  created_at   DateTime @default(now())
+  updated_at   DateTime @updatedAt
+
+  @@index([school_id])
+  @@map("notices")
+}
+
+model Message {
+  id          String   @id @default(uuid())
+  school_id   String
+  school      School   @relation(fields: [school_id], references: [id], onDelete: Cascade)
+  sender_id   String
+  sender      Admin    @relation(fields: [sender_id], references: [id])
+  receiver_id String   @default("")
+  subject     String
+  body        String
+  read        Boolean  @default(false)
+  sent_at     DateTime @default(now())
+
+  @@index([school_id])
+  @@index([sender_id])
+  @@map("messages")
 }
 
 model FeePlan {

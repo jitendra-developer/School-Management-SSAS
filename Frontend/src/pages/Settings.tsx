@@ -1,4 +1,4 @@
-import { useState } from 'react'
+import { useState, useEffect } from 'react'
 import { motion } from 'framer-motion'
 import toast from 'react-hot-toast'
 import {
@@ -17,11 +17,42 @@ import {
   HiOutlineDeviceTablet,
 } from 'react-icons/hi2'
 import { useAuth } from '@/context/AuthContext'
+import { useTheme } from '@/context/ThemeContext'
+import { settingsService } from '@/services/settingsService'
 
 type Tab = 'school' | 'notifications' | 'appearance'
 
+const STORAGE_KEY = 'bright_future_settings'
+
+function loadLocalNotifications() {
+  try {
+    const saved = localStorage.getItem(STORAGE_KEY)
+    if (saved) {
+      const parsed = JSON.parse(saved)
+      return parsed.notifications ?? defaultNotifications
+    }
+  } catch {}
+  return null
+}
+
+function saveLocalNotifications(notifications: typeof defaultNotifications) {
+  try {
+    const existing = JSON.parse(localStorage.getItem(STORAGE_KEY) || '{}')
+    existing.notifications = notifications
+    localStorage.setItem(STORAGE_KEY, JSON.stringify(existing))
+  } catch {}
+}
+
+const defaultNotifications = {
+  emailNotifications: true,
+  feeReminders: true,
+  attendanceAlerts: true,
+  marketingEmails: false,
+}
+
 export default function Settings() {
   const { admin } = useAuth()
+  const { settings, updateSettings } = useTheme()
   const [activeTab, setActiveTab] = useState<Tab>('school')
 
   const [schoolForm, setSchoolForm] = useState({
@@ -31,24 +62,22 @@ export default function Settings() {
     address: admin?.school?.address || '',
   })
 
-  const [notifications, setNotifications] = useState({
-    emailNotifications: true,
-    feeReminders: true,
-    attendanceAlerts: true,
-    marketingEmails: false,
-  })
-
-  const [appearance, setAppearance] = useState({
-    theme: 'light',
-    sidebarCompact: false,
-  })
-
+  const [notifications, setNotifications] = useState(defaultNotifications)
   const [saving, setSaving] = useState(false)
+
+  useEffect(() => {
+    const saved = loadLocalNotifications()
+    if (saved) setNotifications(saved)
+  }, [])
+
+  useEffect(() => {
+    saveLocalNotifications(notifications)
+  }, [notifications])
 
   const handleSaveSchool = async () => {
     setSaving(true)
     try {
-      await new Promise((r) => setTimeout(r, 800))
+      await settingsService.updateSchool(schoolForm)
       toast.success('School settings updated')
     } catch {
       toast.error('Failed to update settings')
@@ -231,22 +260,22 @@ export default function Settings() {
               </label>
               <div className="grid grid-cols-2 gap-3">
                 {[
-                  { value: 'light', label: 'Light', icon: HiOutlineSun, desc: 'Clean and bright' },
-                  { value: 'dark', label: 'Dark', icon: HiOutlineMoon, desc: 'Easy on the eyes' },
-                  { value: 'system', label: 'System', icon: HiOutlineDeviceTablet, desc: 'Follow device' },
+                  { value: 'light' as const, label: 'Light', icon: HiOutlineSun, desc: 'Clean and bright' },
+                  { value: 'dark' as const, label: 'Dark', icon: HiOutlineMoon, desc: 'Easy on the eyes' },
+                  { value: 'system' as const, label: 'System', icon: HiOutlineDeviceTablet, desc: 'Follow device' },
                 ].map((option) => (
                   <button
                     key={option.value}
                     type="button"
-                    onClick={() => setAppearance((p) => ({ ...p, theme: option.value }))}
+                    onClick={() => updateSettings({ theme: option.value })}
                     className={`flex cursor-pointer items-center gap-3 rounded-xl border-2 p-4 text-left transition-all ${
-                      appearance.theme === option.value
+                      settings.theme === option.value
                         ? 'border-primary-500 bg-primary-50/50'
                         : 'border-slate-200/60 bg-white hover:border-slate-300'
                     }`}
                   >
                     <div className={`flex h-10 w-10 items-center justify-center rounded-lg ${
-                      appearance.theme === option.value ? 'bg-primary-600 text-white' : 'bg-slate-100 text-slate-500'
+                      settings.theme === option.value ? 'bg-primary-600 text-white' : 'bg-slate-100 text-slate-500'
                     }`}>
                       <option.icon className="h-5 w-5" />
                     </div>
@@ -273,8 +302,8 @@ export default function Settings() {
                 <label className="relative inline-flex cursor-pointer items-center">
                   <input
                     type="checkbox"
-                    checked={appearance.sidebarCompact}
-                    onChange={() => setAppearance((p) => ({ ...p, sidebarCompact: !p.sidebarCompact }))}
+                    checked={settings.sidebarCompact}
+                    onChange={() => updateSettings({ sidebarCompact: !settings.sidebarCompact })}
                     className="peer sr-only"
                   />
                   <div className="h-6 w-11 rounded-full bg-slate-200 after:absolute after:left-[2px] after:top-[2px] after:h-5 after:w-5 after:rounded-full after:bg-white after:shadow-sm after:transition-all peer-checked:bg-primary-600 peer-checked:after:translate-x-full" />

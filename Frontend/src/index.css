@@ -31,12 +31,22 @@
     scroll-behavior: smooth;
   }
 
+  html.dark {
+    --color-surface: #0f1729;
+    --color-card: #1a2744;
+  }
+
   body {
     margin: 0;
     min-height: 100vh;
     background: linear-gradient(135deg, #f4f6fc 0%, #eef2ff 50%, #f8f4ff 100%);
     background-attachment: fixed;
     color: #1e293b;
+  }
+
+  html.dark body {
+    background: linear-gradient(135deg, #0f1729 0%, #1a2744 50%, #0f1729 100%);
+    color: #e2e8f0;
   }
 
   #root {
@@ -94,6 +104,24 @@
 .sidebar-scroll::-webkit-scrollbar-thumb {
   background: rgba(255, 255, 255, 0.15);
   border-radius: 4px;
+}
+
+html.dark .glass,
+html.dark .glass-card {
+  background: rgba(26, 39, 68, 0.8);
+  border-color: rgba(99, 102, 241, 0.15);
+}
+
+html.dark input,
+html.dark textarea {
+  background: #1a2744;
+  border-color: rgba(99, 102, 241, 0.2);
+  color: #e2e8f0;
+}
+
+html.dark input::placeholder,
+html.dark textarea::placeholder {
+  color: #64748b;
 }
 
 input::placeholder {

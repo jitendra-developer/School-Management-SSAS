@@ -68,7 +68,15 @@ export function AuthProvider({ children }: { children: ReactNode }) {
           storage.setAdmin(responseData.admin)
         }
       } catch {
-        storage.clearAuth()
+        // The API interceptor already clears auth + redirects on 401 (invalid/expired token).
+        // For any other error (network glitch, server down), keep the cached admin so
+        // a valid 7-day session is not destroyed by a temporary failure.
+        const storedAdmin = storage.getAdmin()
+        if (storedAdmin) {
+          setAdmin(storedAdmin)
+        } else {
+          setAdmin(null)
+        }
       } finally {
         setIsLoading(false)
       }
@@ -112,7 +120,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   const value = useMemo(
     () => ({
       admin,
-      isAuthenticated: !!admin && !storage.isTokenExpired(),
+      isAuthenticated: !!admin,
       isLoading,
       login,
       register,

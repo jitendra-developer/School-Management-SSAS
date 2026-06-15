@@ -4,6 +4,7 @@ import {
   HiOutlineUserGroup,
   HiOutlineAcademicCap,
   HiOutlineClipboardCheck,
+  HiOutlineViewList,
   HiOutlineCreditCard,
   HiOutlineDocumentText,
   HiOutlineCalendar,
@@ -38,6 +39,7 @@ export const NAV_GROUPS: NavGroup[] = [
   {
     title: 'MANAGEMENT',
     items: [
+      { label: 'Classes', path: '/classes', icon: HiOutlineViewList },
       { label: 'Students', path: '/students', icon: HiOutlineUserGroup },
       { label: 'Teachers', path: '/teachers', icon: HiOutlineAcademicCap },
       { label: 'Attendance', path: '/attendance', icon: HiOutlineClipboardCheck },
