@@ -1,17 +1,28 @@
+import bcrypt from 'bcryptjs'
 import { prisma } from '../config/db.js'
+
+const SALT_ROUNDS = 12
+
+const sanitize = (teacher) => {
+  if (!teacher) return teacher
+  const { password, ...rest } = teacher
+  return rest
+}
 
 export const teacherService = {
   async create(data, school_id) {
+    const { password, ...rest } = data
     const teacher = await prisma.teacher.create({
       data: {
-        ...data,
+        ...rest,
         school_id,
+        password: password ? await bcrypt.hash(password, SALT_ROUNDS) : null,
         dob: data.dob ? new Date(data.dob) : null,
         joining_date: data.joining_date ? new Date(data.joining_date) : new Date(),
       },
       include: { class: { select: { id: true, name: true, section: true } } },
     })
-    return teacher
+    return sanitize(teacher)
   },
 
   async getAll(school_id, query = {}) {
@@ -41,7 +52,7 @@ export const teacherService = {
       prisma.teacher.count({ where }),
     ])
 
-    return { teachers, total, page: parseInt(page), totalPages: Math.ceil(total / parseInt(limit)) }
+    return { teachers: teachers.map(sanitize), total, page: parseInt(page), totalPages: Math.ceil(total / parseInt(limit)) }
   },
 
   async getById(id, school_id) {
@@ -49,12 +60,19 @@ export const teacherService = {
       where: { id, school_id },
       include: {
         class: { select: { id: true, name: true, section: true } },
-        attendance_records: {
-          include: { attendance: true },
-          orderBy: { attendance: { date: 'desc' } },
-          take: 30,
-        },
       },
+    })
+    if (!teacher) {
+      const err = new Error('Teacher not found')
+      err.statusCode = 404
+      throw err
+    }
+    return sanitize(teacher)
+  },
+
+  async getByIdWithPassword(id, school_id) {
+    const teacher = await prisma.teacher.findFirst({
+      where: { id, school_id },
     })
     if (!teacher) {
       const err = new Error('Teacher not found')
@@ -65,20 +83,22 @@ export const teacherService = {
   },
 
   async update(id, data, school_id) {
-    await this.getById(id, school_id)
+    await this.getByIdWithPassword(id, school_id)
+    const { password, ...rest } = data
     const teacher = await prisma.teacher.update({
       where: { id },
       data: {
-        ...data,
+        ...rest,
+        ...(password ? { password: await bcrypt.hash(password, SALT_ROUNDS) } : {}),
         dob: data.dob ? new Date(data.dob) : undefined,
       },
       include: { class: { select: { id: true, name: true, section: true } } },
     })
-    return teacher
+    return sanitize(teacher)
   },
 
   async remove(id, school_id) {
-    await this.getById(id, school_id)
+    await this.getByIdWithPassword(id, school_id)
     await prisma.teacher.delete({ where: { id } })
   },
 }

@@ -211,6 +211,43 @@ export const authService = {
     return { admin: updated, school: updated.school }
   },
 
+  async teacherLogin({ email, password }) {
+    if (!email || !password) {
+      const err = new Error('Email and password are required')
+      err.statusCode = 400
+      throw err
+    }
+
+    const teacher = await prisma.teacher.findFirst({
+      where: { email },
+      include: {
+        class: { select: { id: true, name: true, section: true } },
+        school: { select: { id: true, school_name: true } },
+      },
+    })
+
+    if (!teacher || !teacher.password) {
+      const err = new Error('Invalid email or password')
+      err.statusCode = 401
+      throw err
+    }
+
+    const isMatch = await bcrypt.compare(password, teacher.password)
+    if (!isMatch) {
+      const err = new Error('Invalid email or password')
+      err.statusCode = 401
+      throw err
+    }
+
+    const token = generateToken(teacher.id)
+    const { password: _, ...teacherData } = teacher
+
+    return {
+      token,
+      teacher: teacherData,
+    }
+  },
+
   async changePassword(adminId, { currentPassword, newPassword }) {
     const admin = await prisma.admin.findUnique({ where: { id: adminId } })
     if (!admin) {

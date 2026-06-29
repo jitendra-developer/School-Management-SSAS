@@ -3,6 +3,7 @@ import {
   createFeePlan,
   getFeePlans,
   assignFee,
+  assignFeeBatch,
   recordPayment,
   getFees,
   getFeeById,
@@ -17,6 +18,7 @@ router.use(protect)
 router.get('/plans', getFeePlans)
 router.post('/plans', createFeePlan)
 router.post('/assign', assignFee)
+router.post('/assign-batch', assignFeeBatch)
 router.post('/pay/:feeId', recordPayment)
 router.get('/', getFees)
 router.get('/pending', getPendingFees)

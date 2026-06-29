@@ -31,4 +31,5 @@ export interface StudentForm {
   address?: string
   gender?: string
   dob?: string
+  enrollment_date?: string
 }

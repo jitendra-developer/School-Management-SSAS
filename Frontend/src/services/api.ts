@@ -12,7 +12,9 @@ const api = axios.create({
 })
 
 api.interceptors.request.use((config) => {
-  const token = storage.getToken()
+  const adminToken = storage.getToken()
+  const teacherToken = storage.getTeacherToken()
+  const token = adminToken || teacherToken
   if (token) {
     config.headers.Authorization = `Bearer ${token}`
   }
@@ -23,9 +25,16 @@ api.interceptors.response.use(
   (response) => response,
   (error) => {
     if (error.response?.status === 401) {
-      storage.clearAuth()
-      if (!window.location.pathname.startsWith('/login')) {
+      const isTeacherPage = window.location.pathname.startsWith('/teacher-attendance')
+      if (isTeacherPage) {
+        storage.clearTeacherAuth()
+      } else {
+        storage.clearAuth()
+      }
+      if (!window.location.pathname.startsWith('/login') && !isTeacherPage) {
         window.location.href = '/login'
+      } else if (isTeacherPage) {
+        window.location.href = '/teacher-attendance'
       }
     }
     return Promise.reject(error)

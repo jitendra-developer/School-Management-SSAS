@@ -17,6 +17,11 @@ export const getClassById = asyncHandler(async (req, res) => {
   return successResponse(res, { message: 'Class fetched', data })
 })
 
+export const updateClass = asyncHandler(async (req, res) => {
+  const data = await classService.update(req.params.id, req.body, req.admin.school_id)
+  return successResponse(res, { message: 'Class updated', data })
+})
+
 export const deleteClass = asyncHandler(async (req, res) => {
   await classService.remove(req.params.id, req.admin.school_id)
   return successResponse(res, { message: 'Class deleted' })
@@ -25,4 +30,12 @@ export const deleteClass = asyncHandler(async (req, res) => {
 export const getClassStudents = asyncHandler(async (req, res) => {
   const data = await classService.getStudents(req.params.id, req.admin.school_id, req.query)
   return successResponse(res, { message: 'Class students fetched', data })
+})
+
+export const bulkUploadStudents = asyncHandler(async (req, res) => {
+  if (!req.file) {
+    return res.status(400).json({ success: false, message: 'No file uploaded' })
+  }
+  const data = await classService.bulkUploadStudents(req.params.id, req.admin.school_id, req.file)
+  return successResponse(res, { message: `Successfully imported ${data.imported} student(s)`, data })
 })

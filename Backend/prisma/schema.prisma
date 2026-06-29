@@ -84,6 +84,7 @@ model Class {
   school     School   @relation(fields: [school_id], references: [id], onDelete: Cascade)
   name       String
   section    String?
+  fee_amount Float?
   created_at DateTime @default(now())
   updated_at DateTime @updatedAt
 
@@ -147,6 +148,7 @@ model Teacher {
   gender        String?
   dob           DateTime?
   photo         String?
+  password      String?
   joining_date  DateTime  @default(now())
   status        String    @default("active")
   created_at    DateTime  @default(now())

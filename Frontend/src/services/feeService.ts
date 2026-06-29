@@ -9,10 +9,12 @@ export const feeService = {
     api.post<ApiResponse<FeePlan>>('/fees/plans', data),
   assignFee: (data: Record<string, unknown>) =>
     api.post<ApiResponse<Fee>>('/fees/assign', data),
+  assignFeeBatch: (data: Record<string, unknown>) =>
+    api.post<ApiResponse<{ count: number }>>('/fees/assign-batch', data),
   recordPayment: (feeId: string, data: Record<string, unknown>) =>
     api.post<ApiResponse<Fee>>(`/fees/pay/${feeId}`, data),
   getAll: (params?: Record<string, string>) =>
-    api.get<ApiResponse<{ fees: Fee[]; total: number }>>('/fees', { params }),
+    api.get<ApiResponse<{ fees: Fee[]; total: number; page: number; totalPages: number }>>('/fees', { params }),
   getPending: (params?: Record<string, string>) =>
     api.get<ApiResponse<{ fees: Fee[]; total: number }>>('/fees/pending', { params }),
   getById: (id: string) =>

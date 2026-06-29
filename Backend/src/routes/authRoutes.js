@@ -2,6 +2,7 @@ import { Router } from 'express'
 import {
   register,
   login,
+  teacherLogin,
   getMe,
   updateProfile,
   uploadProfileImage,
@@ -16,6 +17,7 @@ const router = Router()
 
 router.post('/register', register)
 router.post('/login', login)
+router.post('/teacher/login', teacherLogin)
 router.post('/forgot-password', forgotPassword)
 router.post('/verify-otp', verifyOtp)
 router.post('/reset-password', resetPassword)

@@ -11,8 +11,6 @@ const typeColors: Record<string, string> = {
   quiz: 'bg-amber-100 text-amber-700',
 }
 
-const DAY_NAMES = ['', 'Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday', 'Sunday']
-
 export default function Examinations() {
   const [exams, setExams] = useState<Exam[]>([])
   const [loading, setLoading] = useState(true)
@@ -60,7 +58,7 @@ export default function Examinations() {
 
   const handleEdit = (e: Exam) => {
     setEditing(e)
-    setForm({ title: e.title, subject: e.subject, class_id: e.class_id, type: e.type, date: e.date.split('T')[0], max_marks: String(e.max_marks) })
+    setForm({ title: e.title, subject: e.subject, class_id: e.class_id, type: e.type, date: e.date?.split('T')[0] || '', max_marks: String(e.max_marks) })
     setShowModal(true)
   }
 

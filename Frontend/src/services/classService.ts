@@ -12,6 +12,17 @@ export const classService = {
     api.get<ApiResponse<Class>>(`/classes/${id}`),
   getStudents: (id: string, params?: Record<string, string>) =>
     api.get<ApiResponse<{ students: Student[]; total: number }>>(`/classes/${id}/students`, { params }),
+  update: (id: string, data: Record<string, unknown>) =>
+    api.put<ApiResponse<Class>>(`/classes/${id}`, data),
   delete: (id: string) =>
     api.delete<ApiResponse<null>>(`/classes/${id}`),
+  bulkUploadStudents: (id: string, file: File) => {
+    const formData = new FormData()
+    formData.append('file', file)
+    return api.post<ApiResponse<{ imported: number; errors: string[] }>>(
+      `/classes/${id}/bulk-upload-students`,
+      formData,
+      { headers: { 'Content-Type': 'multipart/form-data' } }
+    )
+  },
 }

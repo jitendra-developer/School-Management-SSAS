@@ -1,6 +1,6 @@
 import { useEffect, useState } from 'react'
 import { motion } from 'framer-motion'
-import { HiOutlineSearch, HiOutlineMail, HiOutlineMailOpen, HiOutlinePaperAirplane, HiOutlineX, HiOutlineInbox, HiOutlineReply } from 'react-icons/hi'
+import { HiOutlineSearch, HiOutlineMailOpen, HiOutlinePaperAirplane, HiOutlineX, HiOutlineReply } from 'react-icons/hi'
 import toast from 'react-hot-toast'
 import { messageService } from '@/services/messageService'
 import type { Message } from '@/types/message'

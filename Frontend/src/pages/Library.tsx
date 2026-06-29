@@ -193,7 +193,7 @@ export default function Library() {
                     <td className="px-4 py-3 text-slate-600">{new Date(i.due_date).toLocaleDateString()}</td>
                     <td className="px-4 py-3"><span className={`inline-block rounded-full px-2.5 py-0.5 text-xs font-medium capitalize ${issueStatusColors[i.status] || 'bg-slate-100 text-slate-600'}`}>{i.status}</span></td>
                     <td className="px-4 py-3 text-right">
-                      {i.status === 'issued' && (
+                      {i.status !== 'returned' && (
                         <button onClick={() => handleReturn(i.id)} className="cursor-pointer inline-flex items-center gap-1 rounded-lg bg-emerald-50 px-2.5 py-1.5 text-xs font-medium text-emerald-600 hover:bg-emerald-100 transition-colors">
                           <HiOutlineReply className="h-3.5 w-3.5" /> Return
                         </button>

@@ -1,7 +1,7 @@
 import { useEffect, useState } from 'react'
 import { motion } from 'framer-motion'
 import { Link } from 'react-router-dom'
-import { HiOutlineAcademicCap, HiOutlineChevronRight, HiOutlineUsers, HiOutlinePlus, HiOutlineX, HiOutlineTrash } from 'react-icons/hi'
+import { HiOutlineAcademicCap, HiOutlineChevronRight, HiOutlineUsers, HiOutlinePlus, HiOutlineX, HiOutlineTrash, HiOutlinePencil, HiOutlineCurrencyRupee } from 'react-icons/hi'
 import toast from 'react-hot-toast'
 import { classService } from '@/services/classService'
 import type { Class } from '@/types/class'
@@ -10,7 +10,8 @@ export default function Classes() {
   const [classes, setClasses] = useState<Class[]>([])
   const [loading, setLoading] = useState(true)
   const [showModal, setShowModal] = useState(false)
-  const [form, setForm] = useState({ name: '', section: '' })
+  const [editing, setEditing] = useState<Class | null>(null)
+  const [form, setForm] = useState({ name: '', section: '', fee_amount: '' })
   const [submitting, setSubmitting] = useState(false)
 
   useEffect(() => { fetchClasses() }, [])
@@ -21,6 +22,24 @@ export default function Classes() {
       setClasses(data.data || [])
     } catch { toast.error('Failed to load classes') }
     finally { setLoading(false) }
+  }
+
+  const openCreate = () => {
+    setEditing(null)
+    setForm({ name: '', section: '', fee_amount: '' })
+    setShowModal(true)
+  }
+
+  const openEdit = (cls: Class, e: React.MouseEvent) => {
+    e.preventDefault()
+    e.stopPropagation()
+    setEditing(cls)
+    setForm({
+      name: cls.name,
+      section: cls.section || '',
+      fee_amount: cls.fee_amount ? String(cls.fee_amount) : '',
+    })
+    setShowModal(true)
   }
 
   const handleDelete = async (cls: Class, e: React.MouseEvent) => {
@@ -38,14 +57,25 @@ export default function Classes() {
     e.preventDefault()
     if (!form.name.trim()) return
     setSubmitting(true)
+    const payload = {
+      name: form.name.trim(),
+      section: form.section.trim() || undefined,
+      fee_amount: form.fee_amount ? parseFloat(form.fee_amount) : null,
+    }
     try {
-      await classService.create({ name: form.name.trim(), section: form.section.trim() || undefined })
-      toast.success('Class created')
+      if (editing) {
+        await classService.update(editing.id, payload)
+        toast.success('Class updated')
+      } else {
+        await classService.create(payload)
+        toast.success('Class created')
+      }
       setShowModal(false)
-      setForm({ name: '', section: '' })
+      setEditing(null)
+      setForm({ name: '', section: '', fee_amount: '' })
       fetchClasses()
     } catch (err: unknown) {
-      const msg = (err as { response?: { data?: { message?: string } } })?.response?.data?.message || 'Failed to create class'
+      const msg = (err as { response?: { data?: { message?: string } } })?.response?.data?.message || `Failed to ${editing ? 'update' : 'create'} class`
       toast.error(msg)
     } finally { setSubmitting(false) }
   }
@@ -62,7 +92,7 @@ export default function Classes() {
           <p className="mt-1 text-sm text-slate-500">View all classes and their students</p>
         </div>
         <button
-          onClick={() => { setForm({ name: '', section: '' }); setShowModal(true) }}
+          onClick={openCreate}
           className="inline-flex cursor-pointer items-center gap-2 rounded-xl bg-gradient-to-r from-primary-600 to-violet-600 px-5 py-2.5 text-sm font-semibold text-white shadow-lg shadow-primary-600/25 transition-all hover:shadow-xl hover:shadow-primary-600/30 hover:scale-[1.02]"
         >
           <HiOutlinePlus className="h-4 w-4" /> Add Class
@@ -94,12 +124,27 @@ export default function Classes() {
                   <h3 className="text-lg font-semibold text-slate-800">
                     {cls.name}{cls.section ? ` (${cls.section})` : ''}
                   </h3>
-                  <p className="inline-flex items-center gap-1 text-sm text-slate-500">
-                    <HiOutlineUsers className="h-4 w-4" />
-                    {cls._count.students} student{cls._count.students !== 1 ? 's' : ''}
-                  </p>
+                  <div className="mt-1 flex items-center gap-3 text-sm text-slate-500">
+                    <span className="inline-flex items-center gap-1">
+                      <HiOutlineUsers className="h-4 w-4" />
+                      {cls._count.students} student{cls._count.students !== 1 ? 's' : ''}
+                    </span>
+                    {cls.fee_amount != null && (
+                      <span className="inline-flex items-center gap-1 text-emerald-600">
+                        <HiOutlineCurrencyRupee className="h-4 w-4" />
+                        ₹{cls.fee_amount.toLocaleString()}
+                      </span>
+                    )}
+                  </div>
                 </div>
                 <div className="relative z-10 flex items-center gap-1">
+                  <button
+                    onClick={(e) => openEdit(cls, e)}
+                    className="cursor-pointer rounded-lg p-1.5 text-slate-400 hover:bg-primary-50 hover:text-primary-500 transition-colors"
+                    title="Edit class"
+                  >
+                    <HiOutlinePencil className="h-4 w-4" />
+                  </button>
                   <button
                     onClick={(e) => handleDelete(cls, e)}
                     className="cursor-pointer rounded-lg p-1.5 text-slate-400 hover:bg-red-50 hover:text-red-500 transition-colors"
@@ -117,15 +162,15 @@ export default function Classes() {
 
       {showModal && (
         <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
-          <div className="fixed inset-0 bg-black/30 backdrop-blur-sm" onClick={() => setShowModal(false)} />
+          <div className="fixed inset-0 bg-black/30 backdrop-blur-sm" onClick={() => { setShowModal(false); setEditing(null) }} />
           <motion.div
             initial={{ opacity: 0, scale: 0.95 }}
             animate={{ opacity: 1, scale: 1 }}
             className="relative w-full max-w-md rounded-2xl bg-white p-6 shadow-2xl"
           >
             <div className="mb-6 flex items-center justify-between">
-              <h2 className="text-lg font-bold text-slate-800">Add Class</h2>
-              <button onClick={() => setShowModal(false)} className="cursor-pointer rounded-lg p-1.5 text-slate-400 hover:bg-slate-100">
+              <h2 className="text-lg font-bold text-slate-800">{editing ? 'Edit Class' : 'Add Class'}</h2>
+              <button onClick={() => { setShowModal(false); setEditing(null) }} className="cursor-pointer rounded-lg p-1.5 text-slate-400 hover:bg-slate-100">
                 <HiOutlineX className="h-5 w-5" />
               </button>
             </div>
@@ -149,10 +194,26 @@ export default function Classes() {
                   className="w-full rounded-lg border border-slate-200 px-3 py-2.5 text-sm focus:outline-none focus:border-primary-500 focus:ring-2 focus:ring-primary-500/20"
                 />
               </div>
+              <div>
+                <label className="mb-1 block text-sm font-medium text-slate-700">
+                  Fixed Fee Amount (optional)
+                </label>
+                <div className="relative">
+                  <span className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400">₹</span>
+                  <input
+                    type="number"
+                    value={form.fee_amount}
+                    onChange={(e) => setForm({ ...form, fee_amount: e.target.value })}
+                    placeholder="e.g. 5000"
+                    className="w-full rounded-lg border border-slate-200 py-2.5 pl-8 pr-3 text-sm focus:outline-none focus:border-primary-500 focus:ring-2 focus:ring-primary-500/20"
+                  />
+                </div>
+                <p className="mt-1 text-xs text-slate-400">This amount will auto-fill when assigning fees to this class</p>
+              </div>
               <div className="flex justify-end gap-3 pt-2">
                 <button
                   type="button"
-                  onClick={() => setShowModal(false)}
+                  onClick={() => { setShowModal(false); setEditing(null) }}
                   className="cursor-pointer rounded-lg border border-slate-200 px-4 py-2.5 text-sm font-medium text-slate-600 hover:bg-slate-50"
                 >
                   Cancel
@@ -162,7 +223,7 @@ export default function Classes() {
                   disabled={submitting}
                   className="cursor-pointer rounded-lg bg-gradient-to-r from-primary-600 to-violet-600 px-6 py-2.5 text-sm font-semibold text-white shadow-lg hover:shadow-xl disabled:opacity-60"
                 >
-                  {submitting ? 'Creating...' : 'Create'}
+                  {submitting ? (editing ? 'Updating...' : 'Creating...') : (editing ? 'Update' : 'Create')}
                 </button>
               </div>
             </form>

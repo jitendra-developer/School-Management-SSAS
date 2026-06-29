@@ -79,6 +79,23 @@ export const uploadProfileImage = [
   }),
 ]
 
+export const teacherLogin = asyncHandler(async (req, res) => {
+  const { email, password } = req.body
+
+  if (!email || !password) {
+    const err = new Error('Email and password are required')
+    err.statusCode = 400
+    throw err
+  }
+
+  const data = await authService.teacherLogin({ email, password })
+
+  return successResponse(res, {
+    message: 'Teacher login successful',
+    data,
+  })
+})
+
 export const changePassword = asyncHandler(async (req, res) => {
   const { currentPassword, newPassword } = req.body
 

@@ -1,6 +1,7 @@
 import { Navigate, Route, Routes } from 'react-router-dom'
 import { DashboardLayout } from '@/components/layout/DashboardLayout'
 import Login from '@/pages/auth/Login'
+import TeacherAttendance from '@/pages/TeacherAttendance'
 import Register from '@/pages/auth/Register'
 import ForgotPassword from '@/pages/auth/ForgotPassword'
 import ResetPassword from '@/pages/auth/ResetPassword'
@@ -61,6 +62,7 @@ export function AppRoutes() {
         }
       />
 
+      <Route path="/teacher-attendance" element={<TeacherAttendance />} />
       <Route element={<ProtectedRoute />}>
         <Route element={<DashboardLayout />}>
           <Route path="/dashboard" element={<Dashboard />} />

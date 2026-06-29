@@ -30,4 +30,7 @@ export const authService = {
 
   resetPassword: (payload: ResetPasswordPayload) =>
     api.post<ApiResponse>('/auth/reset-password', payload),
+
+  teacherLogin: (payload: LoginPayload) =>
+    api.post<ApiResponse<{ token: string; teacher: Record<string, unknown> }>>('/auth/teacher/login', payload),
 }
