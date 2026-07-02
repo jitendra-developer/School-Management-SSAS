@@ -1,19 +1,73 @@
+import bcrypt from 'bcryptjs'
 import XLSX from 'xlsx'
 import { prisma } from '../config/db.js'
+import { emailService } from './emailService.js'
+
+const SALT_ROUNDS = 12
+
+const generateTeacherPassword = (firstName) => {
+  const randomDigits = Math.floor(1000 + Math.random() * 9000).toString()
+  return `${firstName}${randomDigits}`
+}
+
+const teacherSelect = { id: true, first_name: true, last_name: true, email: true }
 
 export const classService = {
   async create(data, school_id) {
+    const { teacher_id, ...classData } = data
+
+    let teacher = null
+    if (teacher_id) {
+      teacher = await prisma.teacher.findFirst({ where: { id: teacher_id, school_id } })
+      if (!teacher) {
+        const err = new Error('Teacher not found')
+        err.statusCode = 404
+        throw err
+      }
+      if (teacher.class_id) {
+        const err = new Error('This teacher is already assigned as class teacher of another class')
+        err.statusCode = 400
+        throw err
+      }
+      if (!teacher.email) {
+        const err = new Error('Teacher must have an email address to be assigned as class teacher')
+        err.statusCode = 400
+        throw err
+      }
+    }
+
     const cls = await prisma.class.create({
-      data: { ...data, school_id },
+      data: { ...classData, school_id },
       include: { _count: { select: { students: true } } },
     })
-    return cls
+
+    if (teacher) {
+      const password = generateTeacherPassword(teacher.first_name)
+      const hashedPassword = await bcrypt.hash(password, SALT_ROUNDS)
+
+      await prisma.teacher.update({
+        where: { id: teacher_id },
+        data: { class_id: cls.id, password: hashedPassword },
+      })
+
+      const school = await prisma.school.findUnique({
+        where: { id: school_id },
+        select: { school_name: true, email: true },
+      })
+
+      await emailService.sendTeacherWelcomeEmail(teacher, school, password)
+    }
+
+    return prisma.class.findUnique({
+      where: { id: cls.id },
+      include: { _count: { select: { students: true } }, teachers: { take: 1, select: teacherSelect } },
+    })
   },
 
   async getAll(school_id) {
     const classes = await prisma.class.findMany({
       where: { school_id },
-      include: { _count: { select: { students: true } } },
+      include: { _count: { select: { students: true } }, teachers: { take: 1, select: teacherSelect } },
       orderBy: { name: 'asc' },
     })
     return classes
@@ -22,7 +76,7 @@ export const classService = {
   async getById(id, school_id) {
     const cls = await prisma.class.findFirst({
       where: { id, school_id },
-      include: { _count: { select: { students: true } } },
+      include: { _count: { select: { students: true } }, teachers: { take: 1, select: teacherSelect } },
     })
     if (!cls) {
       const err = new Error('Class not found')
@@ -33,21 +87,91 @@ export const classService = {
   },
 
   async update(id, data, school_id) {
-    const cls = await prisma.class.findFirst({
+    const existing = await prisma.class.findFirst({
       where: { id, school_id },
+      include: { teachers: { take: 1, select: teacherSelect } },
     })
-    if (!cls) {
+    if (!existing) {
       const err = new Error('Class not found')
       err.statusCode = 404
       throw err
     }
+
+    const currentTeacher = existing.teachers[0] || null
+
+    if ('teacher_id' in data) {
+      const newTeacherId = data.teacher_id || null
+
+      if (newTeacherId !== (currentTeacher?.id || null)) {
+        if (currentTeacher) {
+          await prisma.teacher.update({
+            where: { id: currentTeacher.id },
+            data: { class_id: null },
+          })
+
+          const school = await prisma.school.findUnique({
+            where: { id: school_id },
+            select: { school_name: true, email: true },
+          })
+
+          try {
+            await emailService.sendTeacherRemovalEmail(
+              currentTeacher,
+              school,
+              `${existing.name}${existing.section ? ` (${existing.section})` : ''}`
+            )
+          } catch {
+            // Email failure should not block the update
+          }
+        }
+
+        if (newTeacherId) {
+          const newTeacher = await prisma.teacher.findFirst({
+            where: { id: newTeacherId, school_id },
+          })
+          if (!newTeacher) {
+            const err = new Error('Teacher not found')
+            err.statusCode = 404
+            throw err
+          }
+          if (newTeacher.class_id && newTeacher.class_id !== id) {
+            const err = new Error('This teacher is already assigned as class teacher of another class')
+            err.statusCode = 400
+            throw err
+          }
+          if (!newTeacher.email) {
+            const err = new Error('Teacher must have an email address to be assigned as class teacher')
+            err.statusCode = 400
+            throw err
+          }
+
+          const password = generateTeacherPassword(newTeacher.first_name)
+          const hashedPassword = await bcrypt.hash(password, SALT_ROUNDS)
+
+          await prisma.teacher.update({
+            where: { id: newTeacherId },
+            data: { class_id: id, password: hashedPassword },
+          })
+
+          const school = await prisma.school.findUnique({
+            where: { id: school_id },
+            select: { school_name: true, email: true },
+          })
+
+          await emailService.sendTeacherWelcomeEmail(newTeacher, school, password)
+        }
+      }
+    }
+
+    const { teacher_id, ...updateData } = data
+
     const updated = await prisma.class.update({
       where: { id },
       data: {
-        ...data,
+        ...updateData,
         fee_amount: data.fee_amount !== undefined ? parseFloat(data.fee_amount) : undefined,
       },
-      include: { _count: { select: { students: true } } },
+      include: { _count: { select: { students: true } }, teachers: { take: 1, select: teacherSelect } },
     })
     return updated
   },

@@ -4,8 +4,11 @@ import { HiOutlineSearch, HiOutlinePlus, HiOutlinePencil, HiOutlineTrash, HiOutl
 import toast from 'react-hot-toast'
 import { studentService } from '@/services/studentService'
 import { classService } from '@/services/classService'
+import { attendanceService } from '@/services/attendanceService'
 import type { Student } from '@/types/student'
 import type { Class } from '@/types/class'
+import type { AttendanceRecord } from '@/types/attendance'
+import type { Fee } from '@/types/fee'
 
 export default function Students() {
   const [students, setStudents] = useState<Student[]>([])
@@ -14,6 +17,9 @@ export default function Students() {
   const [showModal, setShowModal] = useState(false)
   const [editing, setEditing] = useState<Student | null>(null)
   const [viewing, setViewing] = useState<Student | null>(null)
+  const [viewingLoading, setViewingLoading] = useState(false)
+  const [monthlyAttendance, setMonthlyAttendance] = useState<{ percentage: number; present: number; total: number } | null>(null)
+  const [feeStats, setFeeStats] = useState<{ percentage: number; paid: number; total: number } | null>(null)
   const [submitting, setSubmitting] = useState(false)
   const [step, setStep] = useState(1)
   const [classes, setClasses] = useState<Class[]>([])
@@ -122,13 +128,50 @@ export default function Students() {
     } catch { toast.error('Delete failed') }
   }
 
+  const closeView = () => {
+    setViewing(null)
+    setMonthlyAttendance(null)
+    setFeeStats(null)
+  }
+
+  const handleView = async (s: Student) => {
+    setViewing(s)
+    setViewingLoading(true)
+    setMonthlyAttendance(null)
+    setFeeStats(null)
+    const now = new Date()
+    const month = now.getMonth() + 1
+    const year = now.getFullYear()
+    try {
+      const [attRes, studRes] = await Promise.all([
+        attendanceService.getStudentRecords(s.id, { month: String(month), year: String(year) }),
+        studentService.getById(s.id),
+      ])
+      const records = (attRes.data?.data || []) as unknown as AttendanceRecord[]
+      if (records.length > 0) {
+        const present = records.filter((r) => r.status === 'present').length
+        setMonthlyAttendance({ present, total: records.length, percentage: Math.round((present / records.length) * 100) })
+      }
+      const studentData = studRes.data?.data as Student & { fees?: Fee[] }
+      const fees = studentData?.fees || []
+      if (fees.length > 0) {
+        const totalAmount = fees.reduce((sum, f) => sum + f.amount, 0)
+        const totalPaid = fees.reduce((sum, f) => sum + f.paid, 0)
+        if (totalAmount > 0) setFeeStats({ total: totalAmount, paid: totalPaid, percentage: Math.round((totalPaid / totalAmount) * 100) })
+      }
+    } catch {}
+    setViewingLoading(false)
+  }
+
   const filtered = students.filter((s) =>
     `${s.first_name} ${s.last_name}`.toLowerCase().includes(search.toLowerCase()) ||
     (s.email && s.email.toLowerCase().includes(search.toLowerCase()))
   )
 
   return (
-    <div className="space-y-6">
+    <>
+      <style>{`@keyframes shimmer { 0%,100% { background-color: #e8e9eb } 50% { background-color: #e2e8f0 } } .skeleton-shimmer { animation: shimmer 1.5s ease-in-out infinite }`}</style>
+      <div className="space-y-6">
       <motion.div initial={{ opacity: 0, y: -8 }} animate={{ opacity: 1, y: 0 }} className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
         <div>
           <h1 className="text-2xl font-bold text-slate-800">Students</h1>
@@ -168,16 +211,32 @@ export default function Students() {
                 <th className="px-4 py-3 text-left font-semibold text-slate-600">Name</th>
                 <th className="px-4 py-3 text-left font-semibold text-slate-600">Class</th>
                 <th className="px-4 py-3 text-left font-semibold text-slate-600">Gender</th>
+                <th className="px-4 py-3 text-left font-semibold text-slate-600">DOB</th>
+                <th className="px-4 py-3 text-left font-semibold text-slate-600">Enrollment Date</th>
                 <th className="px-4 py-3 text-left font-semibold text-slate-600">Parent Name</th>
                 <th className="px-4 py-3 text-left font-semibold text-slate-600">Parent Phone</th>
-                <th className="px-4 py-3 text-left font-semibold text-slate-600">Attendance</th>
-                <th className="px-4 py-3 text-left font-semibold text-slate-600">Enrollment Date</th>
                 <th className="px-4 py-3 text-right font-semibold text-slate-600">Actions</th>
               </tr>
             </thead>
             <tbody>
               {loading ? (
-                <tr><td colSpan={8} className="px-4 py-12 text-center text-slate-400">Loading...</td></tr>
+                Array.from({ length: 5 }).map((_, i) => (
+                  <tr key={i} className="border-b border-slate-100">
+                    <td className="px-4 py-3">
+                      <div className="flex items-center gap-3">
+                        <div className="h-9 w-9 skeleton-shimmer rounded-full bg-slate-200" />
+                        <div className="h-4 w-32 skeleton-shimmer rounded bg-slate-200" />
+                      </div>
+                    </td>
+                    <td className="px-4 py-3"><div className="h-4 w-20 skeleton-shimmer rounded bg-slate-200" /></td>
+                    <td className="px-4 py-3"><div className="h-4 w-14 skeleton-shimmer rounded bg-slate-200" /></td>
+                    <td className="px-4 py-3"><div className="h-4 w-24 skeleton-shimmer rounded bg-slate-200" /></td>
+                    <td className="px-4 py-3"><div className="h-4 w-24 skeleton-shimmer rounded bg-slate-200" /></td>
+                    <td className="px-4 py-3"><div className="h-4 w-20 skeleton-shimmer rounded bg-slate-200" /></td>
+                    <td className="px-4 py-3"><div className="h-4 w-20 skeleton-shimmer rounded bg-slate-200" /></td>
+                    <td className="px-4 py-3"><div className="h-4 w-16 skeleton-shimmer rounded bg-slate-200 ml-auto" /></td>
+                  </tr>
+                ))
               ) : filtered.length === 0 ? (
                 <tr><td colSpan={8} className="px-4 py-12 text-center text-slate-400">No students found</td></tr>
               ) : filtered.map((s, i) => (
@@ -190,29 +249,12 @@ export default function Students() {
                   </td>
                   <td className="px-4 py-3 text-slate-600">{s.class?.name || '—'}{s.class?.section ? ` (${s.class.section})` : ''}</td>
                   <td className="px-4 py-3 text-slate-600 capitalize">{s.gender || '—'}</td>
+                  <td className="px-4 py-3 text-slate-600">{s.dob ? new Date(s.dob).toLocaleDateString('en-US', { year: 'numeric', month: 'short', day: 'numeric' }) : '—'}</td>
+                  <td className="px-4 py-3 text-slate-600">{s.enrollment_date ? new Date(s.enrollment_date).toLocaleDateString('en-US', { year: 'numeric', month: 'short', day: 'numeric' }) : '—'}</td>
                   <td className="px-4 py-3 text-slate-600">{s.parent_name || '—'}</td>
                   <td className="px-4 py-3 text-slate-600">{s.parent_phone || '—'}</td>
-                  <td className="px-4 py-3">
-                    {s.attendance_percentage != null ? (
-                      <span className={`inline-flex items-center gap-1.5 rounded-full px-2.5 py-0.5 text-xs font-medium ${
-                        s.attendance_percentage >= 75 ? 'bg-emerald-100 text-emerald-700' :
-                        s.attendance_percentage >= 50 ? 'bg-amber-100 text-amber-700' :
-                        'bg-red-100 text-red-700'
-                      }`}>
-                        <span className={`h-1.5 w-1.5 rounded-full ${
-                          s.attendance_percentage >= 75 ? 'bg-emerald-500' :
-                          s.attendance_percentage >= 50 ? 'bg-amber-500' :
-                          'bg-red-500'
-                        }`} />
-                        {s.attendance_percentage}%
-                      </span>
-                    ) : (
-                      <span className="text-slate-400">—</span>
-                    )}
-                  </td>
-                  <td className="px-4 py-3 text-slate-600">{s.enrollment_date ? new Date(s.enrollment_date).toLocaleDateString('en-US', { year: 'numeric', month: 'short', day: 'numeric' }) : '—'}</td>
                   <td className="px-4 py-3 text-right">
-                    <button onClick={() => setViewing(s)} className="cursor-pointer rounded-lg p-1.5 text-slate-400 hover:bg-blue-50 hover:text-blue-600"><HiOutlineEye className="h-4 w-4" /></button>
+                    <button onClick={() => handleView(s)} className="cursor-pointer rounded-lg p-1.5 text-slate-400 hover:bg-blue-50 hover:text-blue-600"><HiOutlineEye className="h-4 w-4" /></button>
                     <button onClick={() => handleEdit(s)} className="cursor-pointer rounded-lg p-1.5 text-slate-400 hover:bg-primary-50 hover:text-primary-600"><HiOutlinePencil className="h-4 w-4" /></button>
                     <button onClick={() => handleDelete(s.id)} className="cursor-pointer rounded-lg p-1.5 text-slate-400 hover:bg-red-50 hover:text-red-500"><HiOutlineTrash className="h-4 w-4" /></button>
                   </td>
@@ -225,11 +267,11 @@ export default function Students() {
 
       {viewing && (
         <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
-          <div className="fixed inset-0 bg-black/30 backdrop-blur-sm" onClick={() => setViewing(null)} />
+          <div className="fixed inset-0 bg-black/30 backdrop-blur-sm" onClick={closeView} />
           <motion.div initial={{ opacity: 0, scale: 0.95 }} animate={{ opacity: 1, scale: 1 }} className="relative w-full max-w-lg rounded-2xl bg-white p-6 shadow-2xl">
             <div className="mb-6 flex items-center justify-between">
               <h2 className="text-lg font-bold text-slate-800">Student Details</h2>
-              <button onClick={() => setViewing(null)} className="cursor-pointer rounded-lg p-1.5 text-slate-400 hover:bg-slate-100"><HiOutlineX className="h-5 w-5" /></button>
+              <button onClick={closeView} className="cursor-pointer rounded-lg p-1.5 text-slate-400 hover:bg-slate-100"><HiOutlineX className="h-5 w-5" /></button>
             </div>
             <div className="space-y-4">
               <div className="flex items-center gap-4 pb-4 border-b border-slate-100">
@@ -241,18 +283,77 @@ export default function Students() {
                   <p className="text-sm text-slate-500">{viewing.class?.name ? `${viewing.class.name}${viewing.class.section ? ` (${viewing.class.section})` : ''}` : ''}</p>
                 </div>
               </div>
+              {viewingLoading ? (
+                <div className="flex gap-3 pb-4 border-b border-slate-100">
+                  <div className="flex-1 rounded-lg bg-slate-50 p-3">
+                    <div className="h-3 w-24 skeleton-shimmer rounded bg-slate-200" />
+                    <div className="mt-2 h-6 w-20 skeleton-shimmer rounded bg-slate-200" />
+                  </div>
+                  <div className="flex-1 rounded-lg bg-slate-50 p-3">
+                    <div className="h-3 w-20 skeleton-shimmer rounded bg-slate-200" />
+                    <div className="mt-2 h-6 w-20 skeleton-shimmer rounded bg-slate-200" />
+                  </div>
+                </div>
+              ) : (
+                <div className="flex gap-3 pb-4 border-b border-slate-100">
+                  <div className="flex-1 rounded-lg bg-slate-50 p-3">
+                    <p className="text-xs text-slate-400">Attendance (This Month)</p>
+                    {monthlyAttendance ? (
+                      <p className={`mt-1 text-lg font-bold ${
+                        monthlyAttendance.percentage >= 75 ? 'text-emerald-600' :
+                        monthlyAttendance.percentage >= 50 ? 'text-amber-600' : 'text-red-600'
+                      }`}>
+                        {monthlyAttendance.percentage}%
+                        <span className="ml-1 text-xs font-normal text-slate-500">({monthlyAttendance.present}/{monthlyAttendance.total})</span>
+                      </p>
+                    ) : (
+                      <p className="mt-1 text-sm text-slate-400">No data</p>
+                    )}
+                  </div>
+                  <div className="flex-1 rounded-lg bg-slate-50 p-3">
+                    <p className="text-xs text-slate-400">Fee Payment</p>
+                    {feeStats ? (
+                      <p className={`mt-1 text-lg font-bold ${
+                        feeStats.percentage >= 75 ? 'text-emerald-600' :
+                        feeStats.percentage >= 50 ? 'text-amber-600' : 'text-red-600'
+                      }`}>
+                        {feeStats.percentage}%
+                        <span className="ml-1 text-xs font-normal text-slate-500">(₹{feeStats.paid.toLocaleString()}/₹{feeStats.total.toLocaleString()})</span>
+                      </p>
+                    ) : (
+                      <p className="mt-1 text-sm text-slate-400">No data</p>
+                    )}
+                  </div>
+                </div>
+              )}
               <div className="grid grid-cols-2 gap-4 text-sm">
                 <div>
                   <p className="text-slate-400">Roll Number</p>
                   <p className="font-medium text-slate-700">{viewing.roll_number || '\u2014'}</p>
                 </div>
                 <div>
+                  <p className="text-slate-400">Class</p>
+                  <p className="font-medium text-slate-700">{viewing.class?.name ? `${viewing.class.name}${viewing.class.section ? ` (${viewing.class.section})` : ''}` : '\u2014'}</p>
+                </div>
+                <div>
                   <p className="text-slate-400">Gender</p>
                   <p className="font-medium text-slate-700 capitalize">{viewing.gender || '\u2014'}</p>
                 </div>
                 <div>
+                  <p className="text-slate-400">DOB</p>
+                  <p className="font-medium text-slate-700">{viewing.dob ? new Date(viewing.dob).toLocaleDateString('en-US', { year: 'numeric', month: 'short', day: 'numeric' }) : '\u2014'}</p>
+                </div>
+                <div>
                   <p className="text-slate-400">Phone</p>
                   <p className="font-medium text-slate-700">{viewing.phone || '\u2014'}</p>
+                </div>
+                <div>
+                  <p className="text-slate-400">Status</p>
+                  <p className="font-medium text-slate-700 capitalize">{viewing.status}</p>
+                </div>
+                <div>
+                  <p className="text-slate-400">Enrollment Date</p>
+                  <p className="font-medium text-slate-700">{viewing.enrollment_date ? new Date(viewing.enrollment_date).toLocaleDateString('en-US', { year: 'numeric', month: 'short', day: 'numeric' }) : '\u2014'}</p>
                 </div>
                 <div>
                   <p className="text-slate-400">Parent Name</p>
@@ -266,18 +367,6 @@ export default function Students() {
                   <p className="text-slate-400">Parent Email</p>
                   <p className="font-medium text-slate-700">{viewing.email || '\u2014'}</p>
                 </div>
-                <div>
-                  <p className="text-slate-400">Status</p>
-                  <p className="font-medium text-slate-700 capitalize">{viewing.status}</p>
-                </div>
-                <div>
-                  <p className="text-slate-400">Attendance</p>
-                  <p className="font-medium text-slate-700">{viewing.attendance_percentage != null ? `${viewing.attendance_percentage}%` : '\u2014'}</p>
-                </div>
-                <div>
-                  <p className="text-slate-400">Enrollment Date</p>
-                  <p className="font-medium text-slate-700">{viewing.enrollment_date ? new Date(viewing.enrollment_date).toLocaleDateString('en-US', { year: 'numeric', month: 'short', day: 'numeric' }) : '\u2014'}</p>
-                </div>
               </div>
               {viewing.address && (
                 <div className="text-sm">
@@ -287,7 +376,7 @@ export default function Students() {
               )}
             </div>
             <div className="mt-6 flex justify-end">
-              <button onClick={() => setViewing(null)} className="cursor-pointer rounded-lg border border-slate-200 px-4 py-2.5 text-sm font-medium text-slate-600 hover:bg-slate-50">Close</button>
+              <button onClick={closeView} className="cursor-pointer rounded-lg border border-slate-200 px-4 py-2.5 text-sm font-medium text-slate-600 hover:bg-slate-50">Close</button>
             </div>
           </motion.div>
         </div>
@@ -374,6 +463,7 @@ export default function Students() {
         </div>
       )}
     </div>
+    </>
   )
 }
 

@@ -52,7 +52,7 @@ export default function Teachers() {
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
-    const payload = { ...form }
+    const payload: Record<string, unknown> = { ...form }
     if (!payload.class_id) {
       delete payload.class_id
       delete payload.password
@@ -180,7 +180,14 @@ export default function Teachers() {
                 </select></div>
                 <div><label className="mb-1 block text-sm font-medium text-slate-700">Class <span className="text-xs text-slate-400">(class teacher)</span></label><select value={form.class_id} onChange={(e) => setForm({ ...form, class_id: e.target.value })} className="w-full rounded-lg border border-slate-200 px-3 py-2.5 text-sm focus:outline-none focus:border-primary-500 focus:ring-2 focus:ring-primary-500/20">
                   <option value="">Not assigned</option>
-                  {classes.map((c) => <option key={c.id} value={c.id}>{c.name}{c.section ? ` (${c.section})` : ''}</option>)}
+                  {classes.map((c) => {
+                    const assignedToAnother = !!c.teachers?.[0] && c.teachers[0].id !== editing?.id
+                    return (
+                      <option key={c.id} value={c.id} disabled={assignedToAnother} title={assignedToAnother ? `Already assigned to ${c.teachers?.[0]?.first_name} ${c.teachers?.[0]?.last_name}` : ''}>
+                        {c.name}{c.section ? ` (${c.section})` : ''}
+                      </option>
+                    )
+                  })}
                 </select></div>
               </div>
               {form.class_id && (

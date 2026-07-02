@@ -12,7 +12,7 @@ export function DashboardLayout() {
     <div className="flex min-h-screen bg-surface">
       <Sidebar isOpen={sidebarOpen} onClose={() => setSidebarOpen(false)} compact={settings.sidebarCompact} />
 
-      <div className="flex min-w-0 flex-1 flex-col">
+      <div className={`flex min-w-0 flex-1 flex-col ${settings.sidebarCompact ? 'lg:ml-16' : 'lg:ml-64'}`}>
         <Navbar onMenuClick={() => setSidebarOpen(true)} />
         <main className="flex-1 overflow-auto p-4 lg:p-6">
           <Outlet />

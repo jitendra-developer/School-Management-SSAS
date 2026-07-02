@@ -4,17 +4,20 @@ import { Link } from 'react-router-dom'
 import { HiOutlineAcademicCap, HiOutlineChevronRight, HiOutlineUsers, HiOutlinePlus, HiOutlineX, HiOutlineTrash, HiOutlinePencil, HiOutlineCurrencyRupee } from 'react-icons/hi'
 import toast from 'react-hot-toast'
 import { classService } from '@/services/classService'
+import { teacherService } from '@/services/teacherService'
 import type { Class } from '@/types/class'
+import type { Teacher } from '@/types/teacher'
 
 export default function Classes() {
   const [classes, setClasses] = useState<Class[]>([])
+  const [teachers, setTeachers] = useState<Teacher[]>([])
   const [loading, setLoading] = useState(true)
   const [showModal, setShowModal] = useState(false)
   const [editing, setEditing] = useState<Class | null>(null)
-  const [form, setForm] = useState({ name: '', section: '', fee_amount: '' })
+  const [form, setForm] = useState({ name: '', section: '', fee_amount: '', teacher_id: '' })
   const [submitting, setSubmitting] = useState(false)
 
-  useEffect(() => { fetchClasses() }, [])
+  useEffect(() => { fetchClasses(); fetchTeachers() }, [])
 
   const fetchClasses = async () => {
     try {
@@ -24,9 +27,16 @@ export default function Classes() {
     finally { setLoading(false) }
   }
 
+  const fetchTeachers = async () => {
+    try {
+      const { data } = await teacherService.getAll({ status: 'active', limit: '500' })
+      setTeachers(data.data?.teachers || [])
+    } catch { /* ignore */ }
+  }
+
   const openCreate = () => {
     setEditing(null)
-    setForm({ name: '', section: '', fee_amount: '' })
+    setForm({ name: '', section: '', fee_amount: '', teacher_id: '' })
     setShowModal(true)
   }
 
@@ -38,6 +48,7 @@ export default function Classes() {
       name: cls.name,
       section: cls.section || '',
       fee_amount: cls.fee_amount ? String(cls.fee_amount) : '',
+      teacher_id: cls.teachers?.[0]?.id || '',
     })
     setShowModal(true)
   }
@@ -61,6 +72,7 @@ export default function Classes() {
       name: form.name.trim(),
       section: form.section.trim() || undefined,
       fee_amount: form.fee_amount ? parseFloat(form.fee_amount) : null,
+      teacher_id: form.teacher_id || null,
     }
     try {
       if (editing) {
@@ -72,7 +84,7 @@ export default function Classes() {
       }
       setShowModal(false)
       setEditing(null)
-      setForm({ name: '', section: '', fee_amount: '' })
+      setForm({ name: '', section: '', fee_amount: '', teacher_id: '' })
       fetchClasses()
     } catch (err: unknown) {
       const msg = (err as { response?: { data?: { message?: string } } })?.response?.data?.message || `Failed to ${editing ? 'update' : 'create'} class`
@@ -124,7 +136,7 @@ export default function Classes() {
                   <h3 className="text-lg font-semibold text-slate-800">
                     {cls.name}{cls.section ? ` (${cls.section})` : ''}
                   </h3>
-                  <div className="mt-1 flex items-center gap-3 text-sm text-slate-500">
+                  <div className="mt-1 flex flex-wrap items-center gap-x-3 gap-y-1 text-sm text-slate-500">
                     <span className="inline-flex items-center gap-1">
                       <HiOutlineUsers className="h-4 w-4" />
                       {cls._count.students} student{cls._count.students !== 1 ? 's' : ''}
@@ -133,6 +145,12 @@ export default function Classes() {
                       <span className="inline-flex items-center gap-1 text-emerald-600">
                         <HiOutlineCurrencyRupee className="h-4 w-4" />
                         ₹{cls.fee_amount.toLocaleString()}
+                      </span>
+                    )}
+                    {cls.teachers?.[0] && (
+                      <span className="inline-flex items-center gap-1 text-blue-600">
+                        <HiOutlineAcademicCap className="h-4 w-4" />
+                        {cls.teachers[0].first_name} {cls.teachers[0].last_name}
                       </span>
                     )}
                   </div>
@@ -209,6 +227,23 @@ export default function Classes() {
                   />
                 </div>
                 <p className="mt-1 text-xs text-slate-400">This amount will auto-fill when assigning fees to this class</p>
+              </div>
+              <div>
+                <label className="mb-1 block text-sm font-medium text-slate-700">Class Teacher (optional)</label>
+                <select
+                  value={form.teacher_id}
+                  onChange={(e) => setForm({ ...form, teacher_id: e.target.value })}
+                  className="w-full rounded-lg border border-slate-200 px-3 py-2.5 text-sm focus:outline-none focus:border-primary-500 focus:ring-2 focus:ring-primary-500/20"
+                >
+                  <option value="">No class teacher</option>
+                  {teachers
+                    .filter((t) => !t.class_id || t.class_id === editing?.id)
+                    .map((t) => (
+                      <option key={t.id} value={t.id}>
+                        {t.first_name} {t.last_name}{t.class ? ` (${t.class.name}${t.class.section ? ` ${t.class.section}` : ''})` : ''}
+                      </option>
+                    ))}
+                </select>
               </div>
               <div className="flex justify-end gap-3 pt-2">
                 <button

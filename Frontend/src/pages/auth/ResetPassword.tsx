@@ -1,7 +1,7 @@
 import { useState } from 'react'
 import { Link, useNavigate, useSearchParams } from 'react-router-dom'
 import toast from 'react-hot-toast'
-import { HiOutlineBookOpen, HiOutlineArrowLeft } from 'react-icons/hi'
+import { HiOutlineBookOpen, HiOutlineArrowLeft, HiOutlineEye, HiOutlineEyeOff } from 'react-icons/hi'
 import { authService } from '@/services/authService'
 
 export default function ResetPassword() {
@@ -13,6 +13,8 @@ export default function ResetPassword() {
   const [otp, setOtp] = useState('')
   const [newPassword, setNewPassword] = useState('')
   const [confirmPassword, setConfirmPassword] = useState('')
+  const [showNewPassword, setShowNewPassword] = useState(false)
+  const [showConfirmPassword, setShowConfirmPassword] = useState(false)
   const [step, setStep] = useState(emailParam ? 'otp' : 'email')
   const [loading, setLoading] = useState(false)
   const [resetToken, setResetToken] = useState('')
@@ -134,23 +136,41 @@ export default function ResetPassword() {
           <form onSubmit={handleReset} className="space-y-4">
             <div>
               <label htmlFor="newPassword" className="mb-1 block text-sm font-medium text-slate-700">New Password</label>
-              <input
-                id="newPassword" type="password" required value={newPassword}
-                onChange={(e) => setNewPassword(e.target.value)}
-                className="w-full rounded-lg border border-slate-200 px-4 py-2.5 text-sm focus:border-primary-500 focus:ring-2 focus:ring-primary-500/20"
-                placeholder="Min. 6 characters"
-                minLength={6}
-              />
+              <div className="relative">
+                <input
+                  id="newPassword" type={showNewPassword ? 'text' : 'password'} required value={newPassword}
+                  onChange={(e) => setNewPassword(e.target.value)}
+                  className="w-full rounded-lg border border-slate-200 px-4 py-2.5 pr-10 text-sm focus:border-primary-500 focus:ring-2 focus:ring-primary-500/20"
+                  placeholder="Min. 6 characters"
+                  minLength={6}
+                />
+                <button
+                  type="button"
+                  onClick={() => setShowNewPassword(!showNewPassword)}
+                  className="absolute right-3 top-1/2 -translate-y-1/2 cursor-pointer text-slate-400 hover:text-slate-600"
+                >
+                  {showNewPassword ? <HiOutlineEyeOff className="h-4 w-4" /> : <HiOutlineEye className="h-4 w-4" />}
+                </button>
+              </div>
             </div>
             <div>
               <label htmlFor="confirmPassword" className="mb-1 block text-sm font-medium text-slate-700">Confirm Password</label>
-              <input
-                id="confirmPassword" type="password" required value={confirmPassword}
-                onChange={(e) => setConfirmPassword(e.target.value)}
-                className="w-full rounded-lg border border-slate-200 px-4 py-2.5 text-sm focus:border-primary-500 focus:ring-2 focus:ring-primary-500/20"
-                placeholder="Repeat new password"
-                minLength={6}
-              />
+              <div className="relative">
+                <input
+                  id="confirmPassword" type={showConfirmPassword ? 'text' : 'password'} required value={confirmPassword}
+                  onChange={(e) => setConfirmPassword(e.target.value)}
+                  className="w-full rounded-lg border border-slate-200 px-4 py-2.5 pr-10 text-sm focus:border-primary-500 focus:ring-2 focus:ring-primary-500/20"
+                  placeholder="Repeat new password"
+                  minLength={6}
+                />
+                <button
+                  type="button"
+                  onClick={() => setShowConfirmPassword(!showConfirmPassword)}
+                  className="absolute right-3 top-1/2 -translate-y-1/2 cursor-pointer text-slate-400 hover:text-slate-600"
+                >
+                  {showConfirmPassword ? <HiOutlineEyeOff className="h-4 w-4" /> : <HiOutlineEye className="h-4 w-4" />}
+                </button>
+              </div>
             </div>
             <button type="submit" disabled={loading}
               className="w-full rounded-lg bg-primary-600 py-2.5 text-sm font-semibold text-white hover:bg-primary-500 disabled:opacity-60"

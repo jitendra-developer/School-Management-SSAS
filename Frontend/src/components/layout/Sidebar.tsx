@@ -1,7 +1,8 @@
 import { NavLink } from 'react-router-dom'
-import { HiOutlineBookOpen } from 'react-icons/hi'
+import { HiOutlineBookOpen, HiOutlineChevronDoubleLeft, HiOutlineChevronDoubleRight } from 'react-icons/hi'
 import { NAV_GROUPS } from '@/constants/navigation'
 import { useAuth } from '@/context/AuthContext'
+import { useTheme } from '@/context/ThemeContext'
 
 interface SidebarProps {
   isOpen: boolean
@@ -11,6 +12,7 @@ interface SidebarProps {
 
 export function Sidebar({ isOpen, onClose, compact }: SidebarProps) {
   const { admin } = useAuth()
+  const { updateSettings } = useTheme()
 
   return (
     <>
@@ -24,9 +26,9 @@ export function Sidebar({ isOpen, onClose, compact }: SidebarProps) {
       )}
 
       <aside
-        className={`fixed left-0 top-0 z-50 flex h-full flex-col bg-white/95 backdrop-blur-xl transition-all duration-300 lg:static lg:translate-x-0 ${
+        className={`fixed left-0 top-0 z-50 flex h-screen flex-col bg-white/95 backdrop-blur-xl transition-all duration-300 ${
           isOpen ? 'translate-x-0' : '-translate-x-full'
-        } ${compact ? 'w-16' : 'w-64'}`}
+        } lg:translate-x-0 ${compact ? 'w-16' : 'w-64'}`}
       >
         <div className="flex items-center gap-3 border-b border-slate-200/60 px-5 py-5">
           <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-gradient-to-br from-primary-600 to-violet-600 shadow-lg shadow-primary-600/20">
@@ -38,7 +40,7 @@ export function Sidebar({ isOpen, onClose, compact }: SidebarProps) {
           </div>
         </div>
 
-        <nav className="sidebar-scroll flex-1 overflow-y-auto px-3 py-4">
+        <nav className="flex-1 overflow-y-auto px-3 py-4 scrollbar-none">
           {NAV_GROUPS.map((group) => (
             <div key={group.title || 'main'} className={compact ? 'mb-2' : 'mb-4'}>
               {group.title && (
@@ -76,8 +78,18 @@ export function Sidebar({ isOpen, onClose, compact }: SidebarProps) {
           ))}
         </nav>
 
-        <div className="border-t border-slate-200/60 px-4 py-4">
-          <p className={`text-xs text-slate-400 transition-all duration-300 ${compact ? 'h-0 overflow-hidden opacity-0' : 'h-auto opacity-100'}`}>Bright Future v1.0</p>
+        <div className="border-t border-slate-200/60 px-3 py-3">
+          <button
+            type="button"
+            onClick={() => updateSettings({ sidebarCompact: !compact })}
+            className={`flex w-full cursor-pointer items-center rounded-lg py-2.5 text-sm font-medium transition-all ${
+              compact ? 'justify-center gap-0 text-slate-400 hover:text-slate-600' : 'gap-3 px-3 text-slate-500 hover:bg-slate-50 hover:text-slate-800'
+            }`}
+            title={compact ? 'Expand sidebar' : 'Compact sidebar'}
+          >
+            {compact ? <HiOutlineChevronDoubleRight className="h-5 w-5" /> : <HiOutlineChevronDoubleLeft className="h-5 w-5" />}
+            <span className={`truncate transition-all duration-300 ${compact ? 'w-0 overflow-hidden opacity-0' : 'w-auto opacity-100'}`}>Compact Sidebar</span>
+          </button>
         </div>
       </aside>
     </>

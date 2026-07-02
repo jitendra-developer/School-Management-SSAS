@@ -42,6 +42,8 @@ export default function Profile() {
   const [passwordForm, setPasswordForm] = useState({ currentPassword: '', newPassword: '', confirmPassword: '' })
   const [changingPassword, setChangingPassword] = useState(false)
   const [showPassword, setShowPassword] = useState(false)
+  const [showNewPassword, setShowNewPassword] = useState(false)
+  const [showConfirmPassword, setShowConfirmPassword] = useState(false)
   const [savingPassword, setSavingPassword] = useState(false)
 
   const handleImageUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -366,25 +368,43 @@ export default function Profile() {
             </div>
             <div>
               <label className="mb-1.5 block text-sm font-medium text-slate-700">New Password</label>
-              <input
-                type="password"
-                value={passwordForm.newPassword}
-                onChange={(e) => setPasswordForm((p) => ({ ...p, newPassword: e.target.value }))}
-                className="w-full rounded-lg border border-slate-200/60 bg-white px-4 py-2.5 text-sm text-slate-700 focus:outline-none focus:ring-2 focus:ring-primary-500/30"
-                placeholder="Min. 6 characters"
-                minLength={6}
-              />
+              <div className="relative">
+                <input
+                  type={showNewPassword ? 'text' : 'password'}
+                  value={passwordForm.newPassword}
+                  onChange={(e) => setPasswordForm((p) => ({ ...p, newPassword: e.target.value }))}
+                  className="w-full rounded-lg border border-slate-200/60 bg-white px-4 py-2.5 pr-10 text-sm text-slate-700 focus:outline-none focus:ring-2 focus:ring-primary-500/30"
+                  placeholder="Min. 6 characters"
+                  minLength={6}
+                />
+                <button
+                  type="button"
+                  onClick={() => setShowNewPassword(!showNewPassword)}
+                  className="absolute right-3 top-1/2 -translate-y-1/2 cursor-pointer text-slate-400 hover:text-slate-600"
+                >
+                  {showNewPassword ? <HiOutlineEyeSlash className="h-4 w-4" /> : <HiOutlineEye className="h-4 w-4" />}
+                </button>
+              </div>
             </div>
             <div>
               <label className="mb-1.5 block text-sm font-medium text-slate-700">Confirm New Password</label>
-              <input
-                type="password"
-                value={passwordForm.confirmPassword}
-                onChange={(e) => setPasswordForm((p) => ({ ...p, confirmPassword: e.target.value }))}
-                className="w-full rounded-lg border border-slate-200/60 bg-white px-4 py-2.5 text-sm text-slate-700 focus:outline-none focus:ring-2 focus:ring-primary-500/30"
-                placeholder="Repeat new password"
-                minLength={6}
-              />
+              <div className="relative">
+                <input
+                  type={showConfirmPassword ? 'text' : 'password'}
+                  value={passwordForm.confirmPassword}
+                  onChange={(e) => setPasswordForm((p) => ({ ...p, confirmPassword: e.target.value }))}
+                  className="w-full rounded-lg border border-slate-200/60 bg-white px-4 py-2.5 pr-10 text-sm text-slate-700 focus:outline-none focus:ring-2 focus:ring-primary-500/30"
+                  placeholder="Repeat new password"
+                  minLength={6}
+                />
+                <button
+                  type="button"
+                  onClick={() => setShowConfirmPassword(!showConfirmPassword)}
+                  className="absolute right-3 top-1/2 -translate-y-1/2 cursor-pointer text-slate-400 hover:text-slate-600"
+                >
+                  {showConfirmPassword ? <HiOutlineEyeSlash className="h-4 w-4" /> : <HiOutlineEye className="h-4 w-4" />}
+                </button>
+              </div>
             </div>
             <div className="flex items-center gap-3 pt-2">
               <button

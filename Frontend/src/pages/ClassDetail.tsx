@@ -209,11 +209,11 @@ export default function ClassDetail() {
               <tr className="border-b border-slate-200/60 bg-slate-50/50">
                 <th className="px-4 py-3 text-left font-semibold text-slate-600">Name</th>
                 <th className="px-4 py-3 text-left font-semibold text-slate-600">Roll No</th>
+                <th className="px-4 py-3 text-left font-semibold text-slate-600">DOB</th>
+                <th className="px-4 py-3 text-left font-semibold text-slate-600">Enrollment Date</th>
                 <th className="px-4 py-3 text-left font-semibold text-slate-600">Parent Name</th>
                 <th className="px-4 py-3 text-left font-semibold text-slate-600">Parent Phone</th>
                 <th className="px-4 py-3 text-left font-semibold text-slate-600">Parent Email</th>
-                <th className="px-4 py-3 text-left font-semibold text-slate-600">Enrollment Date</th>
-                <th className="px-4 py-3 text-left font-semibold text-slate-600">Attendance</th>
                 <th className="px-4 py-3 text-right font-semibold text-slate-600">Actions</th>
               </tr>
             </thead>
@@ -239,28 +239,11 @@ export default function ClassDetail() {
                     </div>
                   </td>
                   <td className="px-4 py-3 text-slate-600">{s.roll_number || '\u2014'}</td>
+                  <td className="px-4 py-3 text-slate-600">{s.dob ? new Date(s.dob).toLocaleDateString('en-US', { year: 'numeric', month: 'short', day: 'numeric' }) : '\u2014'}</td>
+                  <td className="px-4 py-3 text-slate-600">{s.enrollment_date ? new Date(s.enrollment_date).toLocaleDateString('en-US', { year: 'numeric', month: 'short', day: 'numeric' }) : '\u2014'}</td>
                   <td className="px-4 py-3 text-slate-600">{s.parent_name || '\u2014'}</td>
                   <td className="px-4 py-3 text-slate-600">{s.parent_phone || '\u2014'}</td>
                   <td className="px-4 py-3 text-slate-600">{s.email || '\u2014'}</td>
-                  <td className="px-4 py-3 text-slate-600">{s.enrollment_date ? new Date(s.enrollment_date).toLocaleDateString('en-US', { year: 'numeric', month: 'short', day: 'numeric' }) : '\u2014'}</td>
-                  <td className="px-4 py-3">
-                    {s.attendance_percentage != null ? (
-                      <span className={`inline-flex items-center gap-1.5 rounded-full px-2.5 py-0.5 text-xs font-medium ${
-                        s.attendance_percentage >= 75 ? 'bg-emerald-100 text-emerald-700' :
-                        s.attendance_percentage >= 50 ? 'bg-amber-100 text-amber-700' :
-                        'bg-red-100 text-red-700'
-                      }`}>
-                        <span className={`h-1.5 w-1.5 rounded-full ${
-                          s.attendance_percentage >= 75 ? 'bg-emerald-500' :
-                          s.attendance_percentage >= 50 ? 'bg-amber-500' :
-                          'bg-red-500'
-                        }`} />
-                        {s.attendance_percentage}%
-                      </span>
-                    ) : (
-                      <span className="text-slate-400">\u2014</span>
-                    )}
-                  </td>
                   <td className="px-4 py-3 text-right">
                     <button onClick={() => setViewing(s)} className="cursor-pointer rounded-lg p-1.5 text-slate-400 hover:bg-blue-50 hover:text-blue-600">
                       <HiOutlineEye className="h-4 w-4" />
@@ -313,6 +296,18 @@ export default function ClassDetail() {
                   <p className="font-medium text-slate-700">{viewing.phone || '\u2014'}</p>
                 </div>
                 <div>
+                  <p className="text-slate-400">DOB</p>
+                  <p className="font-medium text-slate-700">{viewing.dob ? new Date(viewing.dob).toLocaleDateString('en-US', { year: 'numeric', month: 'short', day: 'numeric' }) : '\u2014'}</p>
+                </div>
+                <div>
+                  <p className="text-slate-400">Enrollment Date</p>
+                  <p className="font-medium text-slate-700">{viewing.enrollment_date ? new Date(viewing.enrollment_date).toLocaleDateString('en-US', { year: 'numeric', month: 'short', day: 'numeric' }) : '\u2014'}</p>
+                </div>
+                <div>
+                  <p className="text-slate-400">Status</p>
+                  <p className="font-medium text-slate-700 capitalize">{viewing.status}</p>
+                </div>
+                <div>
                   <p className="text-slate-400">Parent Name</p>
                   <p className="font-medium text-slate-700">{viewing.parent_name || '\u2014'}</p>
                 </div>
@@ -323,14 +318,6 @@ export default function ClassDetail() {
                 <div>
                   <p className="text-slate-400">Parent Email</p>
                   <p className="font-medium text-slate-700">{viewing.email || '\u2014'}</p>
-                </div>
-                <div>
-                  <p className="text-slate-400">Enrollment Date</p>
-                  <p className="font-medium text-slate-700">{viewing.enrollment_date ? new Date(viewing.enrollment_date).toLocaleDateString('en-US', { year: 'numeric', month: 'short', day: 'numeric' }) : '\u2014'}</p>
-                </div>
-                <div>
-                  <p className="text-slate-400">Status</p>
-                  <p className="font-medium text-slate-700 capitalize">{viewing.status}</p>
                 </div>
               </div>
               {viewing.address && (
