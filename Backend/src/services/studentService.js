@@ -15,7 +15,7 @@ export const studentService = {
   },
 
   async getAll(school_id, query = {}) {
-    const { class_id, status, search, page = 1, limit = 20 } = query
+    const { class_id, status, search, page = 1, limit = 20, fee_status } = query
     const skip = (parseInt(page) - 1) * parseInt(limit)
 
     const where = { school_id }
@@ -25,9 +25,13 @@ export const studentService = {
       where.OR = [
         { first_name: { contains: search, mode: 'insensitive' } },
         { last_name: { contains: search, mode: 'insensitive' } },
+        { roll_number: { contains: search, mode: 'insensitive' } },
         { email: { contains: search, mode: 'insensitive' } },
         { phone: { contains: search, mode: 'insensitive' } },
       ]
+    }
+    if (fee_status) {
+      where.fees = { some: { status: fee_status } }
     }
 
     const [students, total] = await Promise.all([
@@ -35,13 +39,37 @@ export const studentService = {
         where,
         skip,
         take: parseInt(limit),
-        include: { class: { select: { id: true, name: true, section: true } } },
+        include: {
+          class: { select: { id: true, name: true, section: true } },
+          _count: { select: { student_attendance: true } },
+        },
         orderBy: { created_at: 'desc' },
       }),
       prisma.student.count({ where }),
     ])
 
-    return { students, total, page: parseInt(page), totalPages: Math.ceil(total / parseInt(limit)) }
+    const studentIds = students.map((s) => s.id)
+    const presentCounts = studentIds.length
+      ? await prisma.studentAttendance.groupBy({
+          by: ['student_id'],
+          where: { student_id: { in: studentIds }, status: 'present' },
+          _count: { id: true },
+        })
+      : []
+
+    const presentMap = Object.fromEntries(
+      presentCounts.map((r) => [r.student_id, r._count.id])
+    )
+
+    const studentsWithAttendance = students.map((s) => ({
+      ...s,
+      attendance_percentage:
+        s._count.student_attendance > 0
+          ? Math.round(((presentMap[s.id] || 0) / s._count.student_attendance) * 100)
+          : null,
+    }))
+
+    return { students: studentsWithAttendance, total, page: parseInt(page), totalPages: Math.ceil(total / parseInt(limit)) }
   },
 
   async getById(id, school_id) {
@@ -49,7 +77,7 @@ export const studentService = {
       where: { id, school_id },
       include: {
         class: { select: { id: true, name: true, section: true } },
-        attendance_records: {
+        student_attendance: {
           include: { attendance: true },
           orderBy: { attendance: { date: 'desc' } },
           take: 30,
@@ -75,6 +103,7 @@ export const studentService = {
       data: {
         ...data,
         dob: data.dob ? new Date(data.dob) : undefined,
+        enrollment_date: data.enrollment_date ? new Date(data.enrollment_date) : undefined,
       },
       include: { class: { select: { id: true, name: true, section: true } } },
     })

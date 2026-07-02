@@ -5,11 +5,11 @@ import {
   getStudentAttendance,
   getTeacherAttendance,
 } from '../controllers/attendanceController.js'
-import { protect } from '../middleware/auth.js'
+import { protectAdminOrTeacher } from '../middleware/auth.js'
 
 const router = Router()
 
-router.use(protect)
+router.use(protectAdminOrTeacher)
 
 router.post('/mark', markAttendance)
 router.get('/date/:date', getAttendanceByDate)

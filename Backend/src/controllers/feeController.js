@@ -17,6 +17,11 @@ export const assignFee = asyncHandler(async (req, res) => {
   return successResponse(res, { message: 'Fee assigned', data, statusCode: 201 })
 })
 
+export const assignFeeBatch = asyncHandler(async (req, res) => {
+  const data = await feeService.assignFeeBatch(req.body, req.admin.school_id)
+  return successResponse(res, { message: 'Fee assigned to students', data, statusCode: 201 })
+})
+
 export const recordPayment = asyncHandler(async (req, res) => {
   const data = await feeService.recordPayment(req.params.feeId, req.body, req.admin.school_id)
   return successResponse(res, { message: 'Payment recorded', data })

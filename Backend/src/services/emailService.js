@@ -69,6 +69,58 @@ export const emailService = {
     return { sent: true, recipient: recipientEmail, studentName }
   },
 
+  async sendTeacherWelcomeEmail(teacher, school, password) {
+    const transporter = getTransporter()
+    const teacherName = `${teacher.first_name} ${teacher.last_name}`
+
+    await transporter.sendMail({
+      from: `"${school?.school_name || 'School'}" <${process.env.SMTP_FROM || process.env.SMTP_USER}>`,
+      to: teacher.email,
+      subject: `Welcome to ${school?.school_name || 'School'} - Your Login Credentials`,
+      html: `
+        <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto;">
+          <h2 style="color: #2563eb;">Welcome to ${school?.school_name || 'School'}</h2>
+          <p>Dear ${teacherName},</p>
+          <p>You have been assigned as the class teacher. Below are your login credentials to access the teacher portal:</p>
+          <table style="width: 100%; border-collapse: collapse; margin: 16px 0;">
+            <tr>
+              <td style="padding: 10px; border: 1px solid #e2e8f0; background: #f8fafc;"><strong>Email</strong></td>
+              <td style="padding: 10px; border: 1px solid #e2e8f0;">${teacher.email}</td>
+            </tr>
+            <tr>
+              <td style="padding: 10px; border: 1px solid #e2e8f0; background: #f8fafc;"><strong>Password</strong></td>
+              <td style="padding: 10px; border: 1px solid #e2e8f0;">${password}</td>
+            </tr>
+          </table>
+          <p>Please login to the teacher portal and change your password after first login for security.</p>
+          <p>If you have any questions, please contact the school administration.</p>
+          <p>Best regards,<br/>${school?.school_name || 'School Management'}</p>
+        </div>
+      `,
+    })
+  },
+
+  async sendTeacherRemovalEmail(teacher, school, className) {
+    const transporter = getTransporter()
+    const teacherName = `${teacher.first_name} ${teacher.last_name}`
+
+    await transporter.sendMail({
+      from: `"${school?.school_name || 'School'}" <${process.env.SMTP_FROM || process.env.SMTP_USER}>`,
+      to: teacher.email,
+      subject: `Class Teacher Assignment Update - ${school?.school_name || 'School'}`,
+      html: `
+        <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto;">
+          <h2 style="color: #e53e3e;">Class Teacher Assignment Update</h2>
+          <p>Dear ${teacherName},</p>
+          <p>You have been removed as the class teacher of <strong>${className}</strong>.</p>
+          <p>You can still access the teacher portal using your existing credentials.</p>
+          <p>Thank you for your service as the class teacher.</p>
+          <p>Regards,<br/>${school?.school_name || 'School Management'}</p>
+        </div>
+      `,
+    })
+  },
+
   async sendBulkFeeReminders(school_id) {
     const now = new Date()
     const pendingFees = await prisma.fee.findMany({

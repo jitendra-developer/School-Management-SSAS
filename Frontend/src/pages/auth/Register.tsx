@@ -1,7 +1,7 @@
 import { useState } from 'react'
 import { Link, useNavigate } from 'react-router-dom'
 import toast from 'react-hot-toast'
-import { HiOutlineBookOpen } from 'react-icons/hi'
+import { HiOutlineBookOpen, HiOutlineEye, HiOutlineEyeOff } from 'react-icons/hi'
 import { useAuth } from '@/context/AuthContext'
 
 /** Register school + admin — foundation for onboarding flow */
@@ -97,20 +97,34 @@ function Field({
   type?: string
   required?: boolean
 }) {
+  const [show, setShow] = useState(false)
+  const isPassword = type === 'password'
+
   return (
     <div>
       <label htmlFor={name} className="mb-1 block text-sm font-medium text-slate-700">
         {label}
       </label>
-      <input
-        id={name}
-        name={name}
-        type={type}
-        required={required}
-        value={value}
-        onChange={onChange}
-        className="w-full rounded-lg border border-slate-200 px-4 py-2.5 text-sm focus:border-primary-500 focus:ring-2 focus:ring-primary-500/20"
-      />
+      <div className="relative">
+        <input
+          id={name}
+          name={name}
+          type={isPassword && show ? 'text' : type}
+          required={required}
+          value={value}
+          onChange={onChange}
+          className={`w-full rounded-lg border border-slate-200 px-4 py-2.5 text-sm focus:border-primary-500 focus:ring-2 focus:ring-primary-500/20 ${isPassword ? 'pr-10' : ''}`}
+        />
+        {isPassword && (
+          <button
+            type="button"
+            onClick={() => setShow(!show)}
+            className="absolute right-3 top-1/2 -translate-y-1/2 cursor-pointer text-slate-400 hover:text-slate-600"
+          >
+            {show ? <HiOutlineEyeOff className="h-4 w-4" /> : <HiOutlineEye className="h-4 w-4" />}
+          </button>
+        )}
+      </div>
     </div>
   )
 }

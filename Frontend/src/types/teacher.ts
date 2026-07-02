@@ -27,4 +27,5 @@ export interface TeacherForm {
   qualification?: string
   class_id?: string
   gender?: string
+  password?: string
 }

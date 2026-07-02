@@ -53,12 +53,18 @@ export const attendanceService = {
   },
 
   async getStudentRecords(studentId, school_id, query = {}) {
-    const { limit = 30 } = query
+    const { limit = 60, month, year } = query
+    const where = {
+      student_id: studentId,
+      attendance: { school_id },
+    }
+    if (month && year) {
+      const startDate = new Date(parseInt(year), parseInt(month) - 1, 1)
+      const endDate = new Date(parseInt(year), parseInt(month), 0, 23, 59, 59, 999)
+      where.attendance.date = { gte: startDate, lte: endDate }
+    }
     const records = await prisma.studentAttendance.findMany({
-      where: {
-        student_id: studentId,
-        attendance: { school_id },
-      },
+      where,
       include: { attendance: true },
       orderBy: { attendance: { date: 'desc' } },
       take: parseInt(limit),
@@ -67,12 +73,18 @@ export const attendanceService = {
   },
 
   async getTeacherRecords(teacherId, school_id, query = {}) {
-    const { limit = 30 } = query
+    const { limit = 60, month, year } = query
+    const where = {
+      teacher_id: teacherId,
+      attendance: { school_id },
+    }
+    if (month && year) {
+      const startDate = new Date(parseInt(year), parseInt(month) - 1, 1)
+      const endDate = new Date(parseInt(year), parseInt(month), 0, 23, 59, 59, 999)
+      where.attendance.date = { gte: startDate, lte: endDate }
+    }
     const records = await prisma.teacherAttendance.findMany({
-      where: {
-        teacher_id: teacherId,
-        attendance: { school_id },
-      },
+      where,
       include: { attendance: true },
       orderBy: { attendance: { date: 'desc' } },
       take: parseInt(limit),

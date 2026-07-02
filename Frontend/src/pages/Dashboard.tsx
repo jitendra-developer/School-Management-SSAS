@@ -2,6 +2,7 @@ import { useEffect, useState } from 'react'
 import { motion } from 'framer-motion'
 import { useNavigate } from 'react-router-dom'
 import { HiOutlineArrowRight } from 'react-icons/hi'
+import toast from 'react-hot-toast'
 import { useAuth } from '@/context/AuthContext'
 import { reportService } from '@/services/reportService'
 import type { DashboardStats } from '@/types/report'
@@ -14,7 +15,7 @@ export default function Dashboard() {
   useEffect(() => {
     reportService.getDashboard()
       .then(({ data }) => setStats(data.data || null))
-      .catch(() => {})
+      .catch(() => toast.error('Failed to load dashboard'))
   }, [])
 
   const cards = [

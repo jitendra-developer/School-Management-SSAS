@@ -1,6 +1,7 @@
 import dotenv from 'dotenv'
 import app from './app.js'
 import { prisma } from './config/db.js'
+import { startAutoAttendanceJob } from './jobs/autoAttendance.js'
 
 dotenv.config()
 
@@ -10,6 +11,8 @@ const startServer = async () => {
   try {
     await prisma.$connect()
     console.log('Database connected')
+
+    startAutoAttendanceJob()
 
     app.listen(PORT, () => {
       console.log(`Server running on http://localhost:${PORT}`)

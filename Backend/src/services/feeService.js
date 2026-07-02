@@ -60,14 +60,48 @@ export const feeService = {
     })
   },
 
+  async assignFeeBatch({ student_ids, plan_id, amount, due_date }, school_id) {
+    const students = await prisma.student.findMany({
+      where: { id: { in: student_ids }, school_id },
+    })
+    if (students.length !== student_ids.length) {
+      const err = new Error('One or more students not found')
+      err.statusCode = 404
+      throw err
+    }
+
+    const data = student_ids.map((sid) => {
+      const student = students.find((s) => s.id === sid)
+      return {
+        school_id,
+        student_id: sid,
+        class_id: student.class_id,
+        plan_id: plan_id || null,
+        amount: parseFloat(amount),
+        due_date: new Date(due_date),
+      }
+    })
+
+    await prisma.fee.createMany({ data })
+    return { count: data.length }
+  },
+
   async getFees(school_id, query = {}) {
-    const { status, class_id, student_id, page = 1, limit = 20 } = query
+    const { status, class_id, student_id, search, page = 1, limit = 20 } = query
     const skip = (parseInt(page) - 1) * parseInt(limit)
 
     const where = { school_id }
     if (status) where.status = status
     if (class_id) where.class_id = class_id
     if (student_id) where.student_id = student_id
+    if (search) {
+      where.student = {
+        OR: [
+          { first_name: { contains: search, mode: 'insensitive' } },
+          { last_name: { contains: search, mode: 'insensitive' } },
+        ],
+      }
+    }
 
     const [fees, total] = await Promise.all([
       prisma.fee.findMany({
