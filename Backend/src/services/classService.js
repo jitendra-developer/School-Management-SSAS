@@ -14,7 +14,26 @@ const teacherSelect = { id: true, first_name: true, last_name: true, email: true
 
 export const classService = {
   async create(data, school_id) {
-    const { teacher_id, ...classData } = data
+    const { teacher_id, subjects, ...classData } = data
+    classData.name = (classData.name || '').trim()
+    if (classData.section) classData.section = classData.section.trim()
+
+    const existing = await prisma.class.findFirst({
+      where: {
+        school_id,
+        name: { equals: classData.name, mode: 'insensitive' },
+        section: classData.section
+          ? { equals: classData.section, mode: 'insensitive' }
+          : null,
+      },
+    })
+    if (existing) {
+      const err = new Error(
+        `A class "${classData.name}${classData.section ? ` (${classData.section})` : ''}" already exists`
+      )
+      err.statusCode = 409
+      throw err
+    }
 
     let teacher = null
     if (teacher_id) {
@@ -58,16 +77,33 @@ export const classService = {
       await emailService.sendTeacherWelcomeEmail(teacher, school, password)
     }
 
+    if (subjects && Array.isArray(subjects) && subjects.length > 0) {
+      const subjectData = subjects
+        .filter((s) => s.trim())
+        .map((name) => ({ school_id, class_id: cls.id, name: name.trim() }))
+      if (subjectData.length > 0) {
+        await prisma.subject.createMany({ data: subjectData })
+      }
+    }
+
     return prisma.class.findUnique({
       where: { id: cls.id },
-      include: { _count: { select: { students: true } }, teachers: { take: 1, select: teacherSelect } },
+      include: {
+        _count: { select: { students: true } },
+        teachers: { take: 1, select: teacherSelect },
+        subjects: { select: { id: true, name: true } },
+      },
     })
   },
 
   async getAll(school_id) {
     const classes = await prisma.class.findMany({
       where: { school_id },
-      include: { _count: { select: { students: true } }, teachers: { take: 1, select: teacherSelect } },
+      include: {
+        _count: { select: { students: true } },
+        teachers: { take: 1, select: teacherSelect },
+        subjects: { select: { id: true, name: true } },
+      },
       orderBy: { name: 'asc' },
     })
     return classes
@@ -76,7 +112,11 @@ export const classService = {
   async getById(id, school_id) {
     const cls = await prisma.class.findFirst({
       where: { id, school_id },
-      include: { _count: { select: { students: true } }, teachers: { take: 1, select: teacherSelect } },
+      include: {
+        _count: { select: { students: true } },
+        teachers: { take: 1, select: teacherSelect },
+        subjects: { select: { id: true, name: true } },
+      },
     })
     if (!cls) {
       const err = new Error('Class not found')
@@ -163,7 +203,40 @@ export const classService = {
       }
     }
 
-    const { teacher_id, ...updateData } = data
+    const { teacher_id, subjects, ...updateData } = data
+    if (updateData.name) updateData.name = updateData.name.trim()
+    if (updateData.section) updateData.section = updateData.section.trim()
+
+    const dupName = updateData.name || existing.name
+    const dupSection = 'section' in updateData ? updateData.section : existing.section
+    const dupWhere = {
+      school_id,
+      id: { not: id },
+      name: { equals: dupName, mode: 'insensitive' },
+    }
+    if (dupSection) {
+      dupWhere.section = { equals: dupSection, mode: 'insensitive' }
+    } else {
+      dupWhere.section = null
+    }
+    const duplicate = await prisma.class.findFirst({ where: dupWhere })
+    if (duplicate) {
+      const err = new Error(
+        `A class "${dupName}${dupSection ? ` (${dupSection})` : ''}" already exists`
+      )
+      err.statusCode = 409
+      throw err
+    }
+
+    if (subjects && Array.isArray(subjects)) {
+      await prisma.subject.deleteMany({ where: { class_id: id, school_id } })
+      const subjectData = subjects
+        .filter((s) => s.trim())
+        .map((name) => ({ school_id, class_id: id, name: name.trim() }))
+      if (subjectData.length > 0) {
+        await prisma.subject.createMany({ data: subjectData })
+      }
+    }
 
     const updated = await prisma.class.update({
       where: { id },
@@ -171,7 +244,11 @@ export const classService = {
         ...updateData,
         fee_amount: data.fee_amount !== undefined ? parseFloat(data.fee_amount) : undefined,
       },
-      include: { _count: { select: { students: true } }, teachers: { take: 1, select: teacherSelect } },
+      include: {
+        _count: { select: { students: true } },
+        teachers: { take: 1, select: teacherSelect },
+        subjects: { select: { id: true, name: true } },
+      },
     })
     return updated
   },

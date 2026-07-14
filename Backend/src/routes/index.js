@@ -16,6 +16,7 @@ import classRoutes from './classRoutes.js'
 import noticeRoutes from './noticeRoutes.js'
 import messageRoutes from './messageRoutes.js'
 import teacherAppRoutes from './teacherAppRoutes.js'
+import subjectRoutes from './subjectRoutes.js'
 
 const router = Router()
 
@@ -40,5 +41,6 @@ router.use('/classes', classRoutes)
 router.use('/notices', noticeRoutes)
 router.use('/messages', messageRoutes)
 router.use('/teacher-app', teacherAppRoutes)
+router.use('/subjects', subjectRoutes)
 
 export default router

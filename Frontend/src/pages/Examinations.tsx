@@ -1,6 +1,7 @@
 import { useEffect, useState } from 'react'
 import { motion } from 'framer-motion'
 import { HiOutlineSearch, HiOutlinePlus, HiOutlinePencil, HiOutlineTrash, HiOutlineX, HiOutlineChevronDown, HiOutlineChevronRight } from 'react-icons/hi'
+import Skeleton from '@/components/ui/Skeleton'
 import toast from 'react-hot-toast'
 import { examService } from '@/services/examService'
 import type { Exam, ExamResult } from '@/types/exam'
@@ -16,6 +17,8 @@ export default function Examinations() {
   const [loading, setLoading] = useState(true)
   const [search, setSearch] = useState('')
   const [showModal, setShowModal] = useState(false)
+  const [submitting, setSubmitting] = useState(false)
+  const [resultSubmitting, setResultSubmitting] = useState(false)
   const [editing, setEditing] = useState<Exam | null>(null)
   const [expandedId, setExpandedId] = useState<string | null>(null)
   const [results, setResults] = useState<Record<string, ExamResult[]>>({})
@@ -46,6 +49,7 @@ export default function Examinations() {
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
+    setSubmitting(true)
     try {
       const payload = { ...form, max_marks: parseFloat(form.max_marks) }
       if (editing) { await examService.update(editing.id, payload); toast.success('Exam updated') }
@@ -54,6 +58,7 @@ export default function Examinations() {
       setForm({ title: '', subject: '', class_id: '', type: 'midterm', date: '', max_marks: '' })
       fetchExams()
     } catch { toast.error('Operation failed') }
+    finally { setSubmitting(false) }
   }
 
   const handleEdit = (e: Exam) => {
@@ -71,6 +76,7 @@ export default function Examinations() {
   const handleAddResult = async (e: React.FormEvent) => {
     e.preventDefault()
     if (!showResultModal) return
+    setResultSubmitting(true)
     try {
       await examService.recordResult(showResultModal, { ...resultForm, marks_obtained: parseFloat(resultForm.marks_obtained) })
       toast.success('Result recorded')
@@ -81,6 +87,7 @@ export default function Examinations() {
         setResults((prev) => ({ ...prev, [showResultModal]: data.data || [] }))
       }
     } catch { toast.error('Failed to record result') }
+    finally { setResultSubmitting(false) }
   }
 
   const filtered = exams.filter((e) =>
@@ -123,7 +130,17 @@ export default function Examinations() {
             </thead>
             <tbody>
               {loading ? (
-                <tr><td colSpan={7} className="px-4 py-12 text-center text-slate-400">Loading...</td></tr>
+                Array.from({ length: 5 }).map((_, i) => (
+                  <tr key={i} className="border-b border-slate-100">
+                    <td className="px-4 py-3"><Skeleton className="h-4 w-32 rounded" /></td>
+                    <td className="px-4 py-3"><Skeleton className="h-4 w-20 rounded" /></td>
+                    <td className="px-4 py-3"><Skeleton className="h-4 w-16 rounded" /></td>
+                    <td className="px-4 py-3"><Skeleton className="h-5 w-14 rounded-full" /></td>
+                    <td className="px-4 py-3"><Skeleton className="h-4 w-24 rounded" /></td>
+                    <td className="px-4 py-3"><Skeleton className="h-4 w-12 rounded" /></td>
+                    <td className="px-4 py-3"><Skeleton className="h-4 w-16 rounded ml-auto" /></td>
+                  </tr>
+                ))
               ) : filtered.length === 0 ? (
                 <tr><td colSpan={7} className="px-4 py-12 text-center text-slate-400">No exams found</td></tr>
               ) : filtered.map((e, i) => (
@@ -204,7 +221,7 @@ export default function Examinations() {
               </div>
               <div className="flex justify-end gap-3 pt-2">
                 <button type="button" onClick={() => setShowModal(false)} className="cursor-pointer rounded-lg border border-slate-200 px-4 py-2.5 text-sm font-medium text-slate-600 hover:bg-slate-50">Cancel</button>
-                <button type="submit" className="cursor-pointer rounded-lg bg-gradient-to-r from-blue-600 to-indigo-600 px-6 py-2.5 text-sm font-semibold text-white shadow-lg hover:shadow-xl">{editing ? 'Update' : 'Create'}</button>
+                <button type="submit" disabled={submitting} className="cursor-pointer rounded-lg bg-gradient-to-r from-blue-600 to-indigo-600 px-6 py-2.5 text-sm font-semibold text-white shadow-lg hover:shadow-xl disabled:opacity-60">{submitting ? 'Saving...' : editing ? 'Update' : 'Create'}</button>
               </div>
             </form>
           </motion.div>
@@ -227,7 +244,7 @@ export default function Examinations() {
               </div>
               <div className="flex justify-end gap-3 pt-2">
                 <button type="button" onClick={() => setShowResultModal(null)} className="cursor-pointer rounded-lg border border-slate-200 px-4 py-2.5 text-sm font-medium text-slate-600 hover:bg-slate-50">Cancel</button>
-                <button type="submit" className="cursor-pointer rounded-lg bg-gradient-to-r from-blue-600 to-indigo-600 px-6 py-2.5 text-sm font-semibold text-white shadow-lg">Add Result</button>
+                <button type="submit" disabled={resultSubmitting} className="cursor-pointer rounded-lg bg-gradient-to-r from-blue-600 to-indigo-600 px-6 py-2.5 text-sm font-semibold text-white shadow-lg disabled:opacity-60">{resultSubmitting ? 'Saving...' : 'Add Result'}</button>
               </div>
             </form>
           </motion.div>

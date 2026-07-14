@@ -41,6 +41,7 @@ model School {
   room_assignments RoomAssignment[]
   notices      Notice[]
   messages     Message[]
+  subjects     Subject[]
 
   @@map("schools")
 }
@@ -93,9 +94,26 @@ model Class {
   fees              Fee[]
   exams             Exam[]
   timetable_entries TimetableEntry[]
+  subjects          Subject[]
 
   @@unique([school_id, name, section])
   @@map("classes")
+}
+
+model Subject {
+  id         String   @id @default(uuid())
+  school_id  String
+  school     School   @relation(fields: [school_id], references: [id], onDelete: Cascade)
+  class_id   String
+  class      Class    @relation(fields: [class_id], references: [id], onDelete: Cascade)
+  name       String
+  created_at DateTime @default(now())
+  updated_at DateTime @updatedAt
+
+  @@index([school_id])
+  @@index([class_id])
+  @@unique([class_id, name])
+  @@map("subjects")
 }
 
 model Student {

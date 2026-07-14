@@ -4,7 +4,7 @@ import type { TransportRoute, TransportAssignment } from '@/types/transport'
 
 export const transportService = {
   getRoutes: (params?: Record<string, string>) =>
-    api.get<ApiResponse<{ routes: TransportRoute[]; total: number }>>('/transport/routes', { params }),
+    api.get<ApiResponse<TransportRoute[]>>('/transport/routes', { params }),
   createRoute: (data: Record<string, unknown>) =>
     api.post<ApiResponse<TransportRoute>>('/transport/routes', data),
   updateRoute: (id: string, data: Record<string, unknown>) =>

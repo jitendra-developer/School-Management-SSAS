@@ -1,6 +1,7 @@
 import { useEffect, useState } from 'react'
 import { motion } from 'framer-motion'
 import { HiOutlineDownload } from 'react-icons/hi'
+import Skeleton from '@/components/ui/Skeleton'
 import toast from 'react-hot-toast'
 import { reportService } from '@/services/reportService'
 
@@ -86,7 +87,26 @@ export default function Reports() {
   }
 
   if (loading) {
-    return <div className="flex min-h-[50vh] items-center justify-center text-slate-400">Loading reports...</div>
+    return (
+      <div className="space-y-6">
+        <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
+          {Array.from({ length: 4 }).map((_, i) => (
+            <div key={i} className="glass-card rounded-xl p-5">
+              <Skeleton className="h-4 w-20 rounded" />
+              <Skeleton className="mt-3 h-7 w-24 rounded" />
+              <Skeleton className="mt-2 h-3 w-32 rounded" />
+            </div>
+          ))}
+        </div>
+        <Skeleton className="h-10 w-48 rounded-lg" />
+        <div className="glass-card rounded-xl overflow-hidden">
+          <Skeleton className="h-10 w-full rounded-none" />
+          {Array.from({ length: 5 }).map((_, i) => (
+            <Skeleton key={i} className="h-12 w-full rounded-none border-t border-slate-100" />
+          ))}
+        </div>
+      </div>
+    )
   }
 
   const stats = (data.dashboard || {}) as Record<string, number>

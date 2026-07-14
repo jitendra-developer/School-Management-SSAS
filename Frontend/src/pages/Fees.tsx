@@ -5,6 +5,7 @@ import {
   HiOutlineViewList, HiOutlineChevronLeft, HiOutlineChevronRight,
   HiOutlineUsers, HiOutlineFilter,
 } from 'react-icons/hi'
+import Skeleton from '@/components/ui/Skeleton'
 import toast from 'react-hot-toast'
 import { feeService } from '@/services/feeService'
 import { studentService } from '@/services/studentService'
@@ -304,7 +305,22 @@ export default function Fees() {
             </thead>
             <tbody>
               {loading ? (
-                <tr><td colSpan={7} className="px-4 py-12 text-center text-slate-400">Loading...</td></tr>
+                Array.from({ length: 5 }).map((_, i) => (
+                  <tr key={i} className="border-b border-slate-100">
+                    <td className="px-4 py-3">
+                      <div className="flex items-center gap-3">
+                        <Skeleton className="h-9 w-9 rounded-full" />
+                        <Skeleton className="h-4 w-28 rounded" />
+                      </div>
+                    </td>
+                    <td className="px-4 py-3"><Skeleton className="h-4 w-16 rounded" /></td>
+                    <td className="px-4 py-3"><Skeleton className="h-4 w-16 rounded" /></td>
+                    <td className="px-4 py-3"><Skeleton className="h-4 w-16 rounded" /></td>
+                    <td className="px-4 py-3"><Skeleton className="h-4 w-16 rounded" /></td>
+                    <td className="px-4 py-3"><Skeleton className="h-5 w-14 rounded-full" /></td>
+                    <td className="px-4 py-3"><Skeleton className="h-4 w-10 rounded ml-auto" /></td>
+                  </tr>
+                ))
               ) : fees.length === 0 ? (
                 <tr><td colSpan={7} className="px-4 py-12 text-center text-slate-400">No fee records found</td></tr>
               ) : fees.map((f, i) => (
@@ -448,7 +464,18 @@ export default function Fees() {
                 </div>
 
                 {studentLoading ? (
-                  <div className="py-8 text-center text-sm text-slate-400">Loading students...</div>
+                  <div className="space-y-2">
+                    {Array.from({ length: 4 }).map((_, i) => (
+                      <div key={i} className="flex items-center gap-3 px-4 py-2.5">
+                        <Skeleton className="h-4 w-4 rounded" />
+                        <Skeleton className="h-8 w-8 rounded-full" />
+                        <div className="flex-1">
+                          <Skeleton className="h-4 w-32 rounded" />
+                          <Skeleton className="mt-1 h-3 w-24 rounded" />
+                        </div>
+                      </div>
+                    ))}
+                  </div>
                 ) : filteredStudents.length === 0 ? (
                   <div className="py-8 text-center text-sm text-slate-400">No students found in this class</div>
                 ) : (

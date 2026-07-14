@@ -1,6 +1,7 @@
 import { useEffect, useState } from 'react'
 import { motion } from 'framer-motion'
 import { HiOutlineSearch, HiOutlinePlus, HiOutlinePencil, HiOutlineTrash, HiOutlineX, HiOutlineHome, HiOutlineKey, HiOutlineUserGroup, HiOutlineLogout } from 'react-icons/hi'
+import Skeleton from '@/components/ui/Skeleton'
 import toast from 'react-hot-toast'
 import { hostelService } from '@/services/hostelService'
 import type { Hostel, Room, RoomAssignment } from '@/types/hostel'
@@ -219,7 +220,16 @@ export default function Hostel() {
               </thead>
               <tbody>
                 {loading ? (
-                  <tr><td colSpan={6} className="px-4 py-12 text-center text-slate-400">Loading...</td></tr>
+                  Array.from({ length: 4 }).map((_, i) => (
+                    <tr key={i} className="border-b border-slate-100">
+                      <td className="px-4 py-3"><Skeleton className="h-4 w-28 rounded" /></td>
+                      <td className="px-4 py-3"><Skeleton className="h-4 w-20 rounded" /></td>
+                      <td className="px-4 py-3"><Skeleton className="h-4 w-24 rounded" /></td>
+                      <td className="px-4 py-3"><Skeleton className="h-5 w-10 rounded-full" /></td>
+                      <td className="px-4 py-3"><Skeleton className="h-4 w-12 rounded" /></td>
+                      <td className="px-4 py-3"><Skeleton className="h-4 w-16 rounded ml-auto" /></td>
+                    </tr>
+                  ))
                 ) : filteredHostels.length === 0 ? (
                   <tr><td colSpan={6} className="px-4 py-12 text-center text-slate-400">No hostels found</td></tr>
                 ) : filteredHostels.map((h, i) => (
@@ -252,7 +262,16 @@ export default function Hostel() {
               </thead>
               <tbody>
                 {loading ? (
-                  <tr><td colSpan={6} className="px-4 py-12 text-center text-slate-400">Loading...</td></tr>
+                  Array.from({ length: 4 }).map((_, i) => (
+                    <tr key={i} className="border-b border-slate-100">
+                      <td className="px-4 py-3"><Skeleton className="h-4 w-16 rounded" /></td>
+                      <td className="px-4 py-3"><Skeleton className="h-4 w-20 rounded" /></td>
+                      <td className="px-4 py-3"><Skeleton className="h-4 w-12 rounded" /></td>
+                      <td className="px-4 py-3"><Skeleton className="h-4 w-12 rounded" /></td>
+                      <td className="px-4 py-3"><Skeleton className="h-5 w-10 rounded-full" /></td>
+                      <td className="px-4 py-3"><Skeleton className="h-4 w-16 rounded ml-auto" /></td>
+                    </tr>
+                  ))
                 ) : filteredRooms.length === 0 ? (
                   <tr><td colSpan={6} className="px-4 py-12 text-center text-slate-400">No rooms found</td></tr>
                 ) : filteredRooms.map((r, i) => (
@@ -285,7 +304,21 @@ export default function Hostel() {
               </thead>
               <tbody>
                 {loading ? (
-                  <tr><td colSpan={6} className="px-4 py-12 text-center text-slate-400">Loading...</td></tr>
+                  Array.from({ length: 4 }).map((_, i) => (
+                    <tr key={i} className="border-b border-slate-100">
+                      <td className="px-4 py-3">
+                        <div className="flex items-center gap-3">
+                          <Skeleton className="h-8 w-8 rounded-full" />
+                          <Skeleton className="h-4 w-28 rounded" />
+                        </div>
+                      </td>
+                      <td className="px-4 py-3"><Skeleton className="h-4 w-16 rounded" /></td>
+                      <td className="px-4 py-3"><Skeleton className="h-4 w-20 rounded" /></td>
+                      <td className="px-4 py-3"><Skeleton className="h-4 w-24 rounded" /></td>
+                      <td className="px-4 py-3"><Skeleton className="h-4 w-24 rounded" /></td>
+                      <td className="px-4 py-3"><Skeleton className="h-4 w-20 rounded ml-auto" /></td>
+                    </tr>
+                  ))
                 ) : filteredAssignments.length === 0 ? (
                   <tr><td colSpan={6} className="px-4 py-12 text-center text-slate-400">No assignments found</td></tr>
                 ) : filteredAssignments.map((a, i) => (
