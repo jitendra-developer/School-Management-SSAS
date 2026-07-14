@@ -222,7 +222,7 @@ export default function Teachers() {
                         className="min-w-[80px] flex-1 border-0 bg-transparent px-0 py-0.5 text-sm focus:outline-none"
                       />
                     </div>
-                    {subjectSearch && allSubjectNames.filter((s) => s.toLowerCase().includes(subjectSearch.toLowerCase())).length > 0 && (
+                    {showSubjectSuggestions && subjectSearch && allSubjectNames.filter((s) => s.toLowerCase().includes(subjectSearch.toLowerCase())).length > 0 && (
                       <div className="absolute left-0 right-0 top-full mt-1 z-10 max-h-40 overflow-y-auto rounded-lg border border-slate-200 bg-white shadow-lg">
                         {allSubjectNames
                           .filter((s) => s.toLowerCase().includes(subjectSearch.toLowerCase()))
