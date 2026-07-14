@@ -326,7 +326,7 @@ export default function Classes() {
                         placeholder="Search or type new subject..."
                         className="w-full rounded-lg border border-slate-200 px-3 py-2 text-sm focus:outline-none focus:border-primary-500 focus:ring-2 focus:ring-primary-500/20"
                       />
-                      {subjectInput && allSubjectNames.filter((s) => !subjects.includes(s) && s.toLowerCase().includes(subjectInput.toLowerCase())).length > 0 && (
+                      {showSuggestions && subjectInput && allSubjectNames.filter((s) => !subjects.includes(s) && s.toLowerCase().includes(subjectInput.toLowerCase())).length > 0 && (
                         <div className="absolute left-0 right-0 top-full mt-1 z-10 max-h-40 overflow-y-auto rounded-lg border border-slate-200 bg-white shadow-lg">
                           {allSubjectNames
                             .filter((s) => !subjects.includes(s) && s.toLowerCase().includes(subjectInput.toLowerCase()))
