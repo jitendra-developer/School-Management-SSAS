@@ -1,6 +1,7 @@
 import { useEffect, useState } from 'react'
 import { motion } from 'framer-motion'
 import { HiOutlineClipboardCheck, HiOutlineCalendar, HiOutlineUserGroup, HiOutlineAcademicCap, HiOutlineClock, HiOutlineCheckCircle, HiOutlineXCircle } from 'react-icons/hi'
+import Skeleton from '@/components/ui/Skeleton'
 import toast from 'react-hot-toast'
 import { attendanceService } from '@/services/attendanceService'
 import { studentService } from '@/services/studentService'
@@ -157,7 +158,24 @@ export default function Attendance() {
       <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} className="glass-card rounded-xl overflow-hidden">
         <div className="divide-y divide-slate-100">
           {fetching ? (
-            <div className="px-4 py-12 text-center text-slate-400">Loading...</div>
+            <div className="divide-y divide-slate-100">
+              {Array.from({ length: 6 }).map((_, i) => (
+                <div key={i} className="flex items-center justify-between px-4 py-3">
+                  <div className="flex items-center gap-3">
+                    <Skeleton className="h-9 w-9 rounded-full" />
+                    <div>
+                      <Skeleton className="h-4 w-36 rounded" />
+                      <Skeleton className="mt-1 h-3 w-20 rounded" />
+                    </div>
+                  </div>
+                  <div className="flex gap-1.5">
+                    <Skeleton className="h-7 w-7 rounded" />
+                    <Skeleton className="h-7 w-7 rounded" />
+                    <Skeleton className="h-7 w-7 rounded" />
+                  </div>
+                </div>
+              ))}
+            </div>
           ) : items.length === 0 ? (
             <div className="px-4 py-12 text-center text-slate-400">No {tab === 'student' ? 'students' : 'teachers'} found</div>
           ) : items.map((item) => {
@@ -234,7 +252,15 @@ export default function Attendance() {
           </div>
 
           {historyLoading ? (
-            <div className="py-8 text-center text-sm text-slate-400">Loading history...</div>
+            <div className="space-y-2">
+              {Array.from({ length: 5 }).map((_, i) => (
+                <div key={i} className="flex items-center gap-4 px-4 py-2.5">
+                  <Skeleton className="h-4 w-28 rounded" />
+                  <Skeleton className="h-4 w-16 rounded" />
+                  <Skeleton className="h-5 w-16 rounded-full" />
+                </div>
+              ))}
+            </div>
           ) : historyRecords.length === 0 ? (
             <div className="py-8 text-center text-sm text-slate-400">No attendance records found for this period</div>
           ) : (

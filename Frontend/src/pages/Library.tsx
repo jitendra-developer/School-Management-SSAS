@@ -1,6 +1,7 @@
 import { useEffect, useState } from 'react'
 import { motion } from 'framer-motion'
 import { HiOutlineSearch, HiOutlinePlus, HiOutlinePencil, HiOutlineTrash, HiOutlineX, HiOutlineBookOpen, HiOutlineClipboardList, HiOutlineReply } from 'react-icons/hi'
+import Skeleton from '@/components/ui/Skeleton'
 import toast from 'react-hot-toast'
 import { libraryService } from '@/services/libraryService'
 import type { Book, BookIssue } from '@/types/library'
@@ -150,7 +151,16 @@ export default function Library() {
               </thead>
               <tbody>
                 {loading ? (
-                  <tr><td colSpan={6} className="px-4 py-12 text-center text-slate-400">Loading...</td></tr>
+                  Array.from({ length: 4 }).map((_, i) => (
+                    <tr key={i} className="border-b border-slate-100">
+                      <td className="px-4 py-3"><Skeleton className="h-4 w-36 rounded" /></td>
+                      <td className="px-4 py-3"><Skeleton className="h-4 w-24 rounded" /></td>
+                      <td className="px-4 py-3"><Skeleton className="h-4 w-20 rounded" /></td>
+                      <td className="px-4 py-3"><Skeleton className="h-4 w-10 rounded" /></td>
+                      <td className="px-4 py-3"><Skeleton className="h-5 w-10 rounded-full" /></td>
+                      <td className="px-4 py-3"><Skeleton className="h-4 w-16 rounded ml-auto" /></td>
+                    </tr>
+                  ))
                 ) : filteredBooks.length === 0 ? (
                   <tr><td colSpan={6} className="px-4 py-12 text-center text-slate-400">No books found</td></tr>
                 ) : filteredBooks.map((b, i) => (
@@ -182,7 +192,16 @@ export default function Library() {
               </thead>
               <tbody>
                 {loading ? (
-                  <tr><td colSpan={6} className="px-4 py-12 text-center text-slate-400">Loading...</td></tr>
+                  Array.from({ length: 4 }).map((_, i) => (
+                    <tr key={i} className="border-b border-slate-100">
+                      <td className="px-4 py-3"><Skeleton className="h-4 w-28 rounded" /></td>
+                      <td className="px-4 py-3"><Skeleton className="h-4 w-24 rounded" /></td>
+                      <td className="px-4 py-3"><Skeleton className="h-4 w-24 rounded" /></td>
+                      <td className="px-4 py-3"><Skeleton className="h-4 w-24 rounded" /></td>
+                      <td className="px-4 py-3"><Skeleton className="h-5 w-14 rounded-full" /></td>
+                      <td className="px-4 py-3"><Skeleton className="h-4 w-14 rounded ml-auto" /></td>
+                    </tr>
+                  ))
                 ) : filteredIssues.length === 0 ? (
                   <tr><td colSpan={6} className="px-4 py-12 text-center text-slate-400">No issues found</td></tr>
                 ) : filteredIssues.map((i, idx) => (

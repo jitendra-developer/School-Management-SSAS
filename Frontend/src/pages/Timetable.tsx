@@ -1,50 +1,92 @@
 import { useEffect, useState } from 'react'
 import { motion } from 'framer-motion'
 import { HiOutlineSearch, HiOutlinePlus, HiOutlinePencil, HiOutlineTrash, HiOutlineX } from 'react-icons/hi'
+import Skeleton from '@/components/ui/Skeleton'
 import toast from 'react-hot-toast'
 import { timetableService } from '@/services/timetableService'
+import { classService } from '@/services/classService'
+import { teacherService } from '@/services/teacherService'
+import { subjectService } from '@/services/subjectService'
 import type { TimetableEntry } from '@/types/timetable'
+import type { Class } from '@/types/class'
+import type { Teacher } from '@/types/teacher'
+import type { Subject } from '@/types/subject'
 
 const DAY_NAMES: Record<number, string> = { 1: 'Monday', 2: 'Tuesday', 3: 'Wednesday', 4: 'Thursday', 5: 'Friday', 6: 'Saturday', 7: 'Sunday' }
 
 export default function Timetable() {
   const [entries, setEntries] = useState<TimetableEntry[]>([])
+  const [classes, setClasses] = useState<Class[]>([])
+  const [teachers, setTeachers] = useState<Teacher[]>([])
+  const [classSubjects, setClassSubjects] = useState<Subject[]>([])
   const [loading, setLoading] = useState(true)
   const [search, setSearch] = useState('')
   const [filterDay, setFilterDay] = useState('')
   const [showModal, setShowModal] = useState(false)
+  const [submitting, setSubmitting] = useState(false)
   const [editing, setEditing] = useState<TimetableEntry | null>(null)
   const [form, setForm] = useState({ class_id: '', teacher_id: '', day_of_week: '1', subject: '', start_time: '', end_time: '', room: '' })
 
-  useEffect(() => { fetchEntries() }, [])
+  useEffect(() => { fetchEntries(); fetchClasses(); fetchTeachers() }, [])
 
   const fetchEntries = async () => {
     try {
       const params: Record<string, string> = { limit: '50' }
-      if (filterDay) params.day = filterDay
+      if (filterDay) params.day_of_week = filterDay
       const { data } = await timetableService.getAll(params)
       setEntries(data.data?.timetable || [])
     } catch { toast.error('Failed to load timetable') }
     finally { setLoading(false) }
   }
 
+  const fetchClasses = async () => {
+    try {
+      const { data } = await classService.getAll()
+      setClasses(data.data || [])
+    } catch { /* ignore */ }
+  }
+
+  const fetchTeachers = async () => {
+    try {
+      const { data } = await teacherService.getAll({ status: 'active', limit: '500' })
+      setTeachers(data.data?.teachers || [])
+    } catch { /* ignore */ }
+  }
+
+  const fetchSubjectsByClass = async (classId: string) => {
+    if (!classId) { setClassSubjects([]); return }
+    try {
+      const { data } = await subjectService.getByClass(classId)
+      setClassSubjects(data.data || [])
+    } catch { setClassSubjects([]) }
+  }
+
   useEffect(() => { fetchEntries() }, [filterDay])
+
+  const handleClassChange = (classId: string) => {
+    setForm({ ...form, class_id: classId, subject: '' })
+    fetchSubjectsByClass(classId)
+  }
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
+    setSubmitting(true)
     try {
       const payload = { ...form, day_of_week: parseInt(form.day_of_week) }
       if (editing) { await timetableService.update(editing.id, payload); toast.success('Entry updated') }
       else { await timetableService.create(payload); toast.success('Entry created') }
       setShowModal(false); setEditing(null)
       setForm({ class_id: '', teacher_id: '', day_of_week: '1', subject: '', start_time: '', end_time: '', room: '' })
+      setClassSubjects([])
       fetchEntries()
     } catch { toast.error('Operation failed') }
+    finally { setSubmitting(false) }
   }
 
   const handleEdit = (t: TimetableEntry) => {
     setEditing(t)
     setForm({ class_id: t.class_id, teacher_id: t.teacher_id || '', day_of_week: String(t.day_of_week), subject: t.subject, start_time: t.start_time, end_time: t.end_time, room: t.room || '' })
+    fetchSubjectsByClass(t.class_id)
     setShowModal(true)
   }
 
@@ -66,7 +108,7 @@ export default function Timetable() {
           <h1 className="text-2xl font-bold text-slate-800">Timetable</h1>
           <p className="mt-1 text-sm text-slate-500">Manage class schedules</p>
         </div>
-        <button onClick={() => { setEditing(null); setForm({ class_id: '', teacher_id: '', day_of_week: '1', subject: '', start_time: '', end_time: '', room: '' }); setShowModal(true) }} className="inline-flex cursor-pointer items-center gap-2 rounded-xl bg-gradient-to-r from-teal-600 to-cyan-600 px-5 py-2.5 text-sm font-semibold text-white shadow-lg shadow-teal-600/25 transition-all hover:shadow-xl hover:scale-[1.02]">
+        <button onClick={() => { setEditing(null); setForm({ class_id: '', teacher_id: '', day_of_week: '1', subject: '', start_time: '', end_time: '', room: '' }); setClassSubjects([]); setShowModal(true) }} className="inline-flex cursor-pointer items-center gap-2 rounded-xl bg-gradient-to-r from-teal-600 to-cyan-600 px-5 py-2.5 text-sm font-semibold text-white shadow-lg shadow-teal-600/25 transition-all hover:shadow-xl hover:scale-[1.02]">
           <HiOutlinePlus className="h-4 w-4" /> Add Entry
         </button>
       </motion.div>
@@ -100,7 +142,17 @@ export default function Timetable() {
             </thead>
             <tbody>
               {loading ? (
-                <tr><td colSpan={7} className="px-4 py-12 text-center text-slate-400">Loading...</td></tr>
+                Array.from({ length: 4 }).map((_, i) => (
+                  <tr key={i} className="border-b border-slate-100">
+                    <td className="px-4 py-3"><Skeleton className="h-4 w-20 rounded" /></td>
+                    <td className="px-4 py-3"><Skeleton className="h-4 w-28 rounded" /></td>
+                    <td className="px-4 py-3"><Skeleton className="h-4 w-16 rounded" /></td>
+                    <td className="px-4 py-3"><Skeleton className="h-4 w-24 rounded" /></td>
+                    <td className="px-4 py-3"><Skeleton className="h-4 w-20 rounded" /></td>
+                    <td className="px-4 py-3"><Skeleton className="h-4 w-12 rounded" /></td>
+                    <td className="px-4 py-3"><Skeleton className="h-4 w-14 rounded ml-auto" /></td>
+                  </tr>
+                ))
               ) : filtered.length === 0 ? (
                 <tr><td colSpan={7} className="px-4 py-12 text-center text-slate-400">No entries found</td></tr>
               ) : filtered.map((t, i) => (
@@ -124,22 +176,31 @@ export default function Timetable() {
 
       {showModal && (
         <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
-          <div className="fixed inset-0 bg-black/30 backdrop-blur-sm" onClick={() => setShowModal(false)} />
+          <div className="fixed inset-0 bg-black/30 backdrop-blur-sm" onClick={() => { setShowModal(false); setEditing(null); setClassSubjects([]) }} />
           <motion.div initial={{ opacity: 0, scale: 0.95 }} animate={{ opacity: 1, scale: 1 }} className="relative w-full max-w-lg rounded-2xl bg-white p-6 shadow-2xl">
             <div className="mb-6 flex items-center justify-between">
               <h2 className="text-lg font-bold text-slate-800">{editing ? 'Edit Entry' : 'Add Timetable Entry'}</h2>
-              <button onClick={() => setShowModal(false)} className="cursor-pointer rounded-lg p-1.5 text-slate-400 hover:bg-slate-100"><HiOutlineX className="h-5 w-5" /></button>
+              <button onClick={() => { setShowModal(false); setEditing(null); setClassSubjects([]) }} className="cursor-pointer rounded-lg p-1.5 text-slate-400 hover:bg-slate-100"><HiOutlineX className="h-5 w-5" /></button>
             </div>
             <form onSubmit={handleSubmit} className="space-y-4">
               <div className="grid grid-cols-2 gap-4">
-                <div><label className="mb-1 block text-sm font-medium text-slate-700">Class ID</label><input required value={form.class_id} onChange={(e) => setForm({ ...form, class_id: e.target.value })} placeholder="Enter class ID" className="w-full rounded-lg border border-slate-200 px-3 py-2.5 text-sm focus:outline-none focus:border-primary-500 focus:ring-2 focus:ring-primary-500/20" /></div>
-                <div><label className="mb-1 block text-sm font-medium text-slate-700">Teacher ID</label><input value={form.teacher_id} onChange={(e) => setForm({ ...form, teacher_id: e.target.value })} placeholder="Enter teacher ID" className="w-full rounded-lg border border-slate-200 px-3 py-2.5 text-sm focus:outline-none focus:border-primary-500 focus:ring-2 focus:ring-primary-500/20" /></div>
+                <div><label className="mb-1 block text-sm font-medium text-slate-700">Class</label><select required value={form.class_id} onChange={(e) => handleClassChange(e.target.value)} className="w-full rounded-lg border border-slate-200 px-3 py-2.5 text-sm focus:outline-none focus:border-primary-500 focus:ring-2 focus:ring-primary-500/20">
+                  <option value="">Select Class</option>
+                  {classes.map((c) => <option key={c.id} value={c.id}>{c.name}{c.section ? ` (${c.section})` : ''}</option>)}
+                </select></div>
+                <div><label className="mb-1 block text-sm font-medium text-slate-700">Teacher</label><select value={form.teacher_id} onChange={(e) => setForm({ ...form, teacher_id: e.target.value })} className="w-full rounded-lg border border-slate-200 px-3 py-2.5 text-sm focus:outline-none focus:border-primary-500 focus:ring-2 focus:ring-primary-500/20">
+                  <option value="">No teacher</option>
+                  {teachers.map((t) => <option key={t.id} value={t.id}>{t.first_name} {t.last_name}</option>)}
+                </select></div>
               </div>
               <div className="grid grid-cols-2 gap-4">
                 <div><label className="mb-1 block text-sm font-medium text-slate-700">Day of Week</label><select required value={form.day_of_week} onChange={(e) => setForm({ ...form, day_of_week: e.target.value })} className="w-full rounded-lg border border-slate-200 px-3 py-2.5 text-sm focus:outline-none focus:border-primary-500 focus:ring-2 focus:ring-primary-500/20">
                   {[1,2,3,4,5,6,7].map((d) => <option key={d} value={d}>{DAY_NAMES[d]}</option>)}
                 </select></div>
-                <div><label className="mb-1 block text-sm font-medium text-slate-700">Subject</label><input required value={form.subject} onChange={(e) => setForm({ ...form, subject: e.target.value })} className="w-full rounded-lg border border-slate-200 px-3 py-2.5 text-sm focus:outline-none focus:border-primary-500 focus:ring-2 focus:ring-primary-500/20" /></div>
+                <div><label className="mb-1 block text-sm font-medium text-slate-700">Subject</label><select required value={form.subject} onChange={(e) => setForm({ ...form, subject: e.target.value })} className="w-full rounded-lg border border-slate-200 px-3 py-2.5 text-sm focus:outline-none focus:border-primary-500 focus:ring-2 focus:ring-primary-500/20">
+                  <option value="">{form.class_id ? 'No subjects available' : 'Select a class first'}</option>
+                  {classSubjects.map((s) => <option key={s.id} value={s.name}>{s.name}</option>)}
+                </select></div>
               </div>
               <div className="grid grid-cols-2 gap-4">
                 <div><label className="mb-1 block text-sm font-medium text-slate-700">Start Time</label><input required type="time" value={form.start_time} onChange={(e) => setForm({ ...form, start_time: e.target.value })} className="w-full rounded-lg border border-slate-200 px-3 py-2.5 text-sm focus:outline-none focus:border-primary-500 focus:ring-2 focus:ring-primary-500/20" /></div>
@@ -147,8 +208,8 @@ export default function Timetable() {
               </div>
               <div><label className="mb-1 block text-sm font-medium text-slate-700">Room</label><input value={form.room} onChange={(e) => setForm({ ...form, room: e.target.value })} className="w-full rounded-lg border border-slate-200 px-3 py-2.5 text-sm focus:outline-none focus:border-primary-500 focus:ring-2 focus:ring-primary-500/20" /></div>
               <div className="flex justify-end gap-3 pt-2">
-                <button type="button" onClick={() => setShowModal(false)} className="cursor-pointer rounded-lg border border-slate-200 px-4 py-2.5 text-sm font-medium text-slate-600 hover:bg-slate-50">Cancel</button>
-                <button type="submit" className="cursor-pointer rounded-lg bg-gradient-to-r from-teal-600 to-cyan-600 px-6 py-2.5 text-sm font-semibold text-white shadow-lg hover:shadow-xl">{editing ? 'Update' : 'Create'}</button>
+                <button type="button" onClick={() => { setShowModal(false); setEditing(null); setClassSubjects([]) }} className="cursor-pointer rounded-lg border border-slate-200 px-4 py-2.5 text-sm font-medium text-slate-600 hover:bg-slate-50">Cancel</button>
+                <button type="submit" disabled={submitting} className="cursor-pointer rounded-lg bg-gradient-to-r from-teal-600 to-cyan-600 px-6 py-2.5 text-sm font-semibold text-white shadow-lg hover:shadow-xl disabled:opacity-60">{submitting ? 'Saving...' : editing ? 'Update' : 'Create'}</button>
               </div>
             </form>
           </motion.div>

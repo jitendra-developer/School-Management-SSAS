@@ -1,6 +1,7 @@
 import { useEffect, useState } from 'react'
 import { motion } from 'framer-motion'
 import { HiOutlineSearch, HiOutlinePlus, HiOutlinePencil, HiOutlineTrash, HiOutlineX, HiOutlineTruck, HiOutlineUserGroup } from 'react-icons/hi'
+import Skeleton from '@/components/ui/Skeleton'
 import toast from 'react-hot-toast'
 import { transportService } from '@/services/transportService'
 import type { TransportRoute, TransportAssignment } from '@/types/transport'
@@ -14,6 +15,8 @@ export default function Transport() {
   const [loading, setLoading] = useState(true)
   const [search, setSearch] = useState('')
   const [showModal, setShowModal] = useState(false)
+  const [submitting, setSubmitting] = useState(false)
+  const [assignSubmitting, setAssignSubmitting] = useState(false)
   const [editing, setEditing] = useState<TransportRoute | null>(null)
   const [routeForm, setRouteForm] = useState({ route_name: '', vehicle_number: '', driver_name: '', driver_phone: '' })
   const [showAssignModal, setShowAssignModal] = useState(false)
@@ -25,7 +28,7 @@ export default function Transport() {
     setLoading(true)
     try {
       const { data } = await transportService.getRoutes({ limit: '50' })
-      setRoutes(data.data?.routes || [])
+      setRoutes(data.data || [])
     } catch { toast.error('Failed to load routes') }
     finally { setLoading(false) }
   }
@@ -41,6 +44,7 @@ export default function Transport() {
 
   const handleRouteSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
+    setSubmitting(true)
     try {
       if (editing) { await transportService.updateRoute(editing.id, routeForm); toast.success('Route updated') }
       else { await transportService.createRoute(routeForm); toast.success('Route created') }
@@ -48,6 +52,7 @@ export default function Transport() {
       setRouteForm({ route_name: '', vehicle_number: '', driver_name: '', driver_phone: '' })
       fetchRoutes()
     } catch { toast.error('Operation failed') }
+    finally { setSubmitting(false) }
   }
 
   const handleRouteEdit = (r: TransportRoute) => {
@@ -64,6 +69,7 @@ export default function Transport() {
 
   const handleAssign = async (e: React.FormEvent) => {
     e.preventDefault()
+    setAssignSubmitting(true)
     try {
       await transportService.assignStudent(assignForm)
       toast.success('Student assigned')
@@ -71,6 +77,7 @@ export default function Transport() {
       setAssignForm({ route_id: '', student_id: '', pickup_point: '', pickup_time: '', drop_time: '' })
       fetchAssignments()
     } catch { toast.error('Assignment failed') }
+    finally { setAssignSubmitting(false) }
   }
 
   const handleRemoveAssignment = async (id: string) => {
@@ -143,7 +150,16 @@ export default function Transport() {
               </thead>
               <tbody>
                 {loading ? (
-                  <tr><td colSpan={6} className="px-4 py-12 text-center text-slate-400">Loading...</td></tr>
+                  Array.from({ length: 4 }).map((_, i) => (
+                    <tr key={i} className="border-b border-slate-100">
+                      <td className="px-4 py-3"><Skeleton className="h-4 w-28 rounded" /></td>
+                      <td className="px-4 py-3"><Skeleton className="h-4 w-20 rounded" /></td>
+                      <td className="px-4 py-3"><Skeleton className="h-4 w-20 rounded" /></td>
+                      <td className="px-4 py-3"><Skeleton className="h-4 w-24 rounded" /></td>
+                      <td className="px-4 py-3"><Skeleton className="h-5 w-12 rounded-full" /></td>
+                      <td className="px-4 py-3"><Skeleton className="h-4 w-16 rounded ml-auto" /></td>
+                    </tr>
+                  ))
                 ) : filteredRoutes.length === 0 ? (
                   <tr><td colSpan={6} className="px-4 py-12 text-center text-slate-400">No routes found</td></tr>
                 ) : filteredRoutes.map((r, i) => (
@@ -175,7 +191,21 @@ export default function Transport() {
               </thead>
               <tbody>
                 {loading ? (
-                  <tr><td colSpan={6} className="px-4 py-12 text-center text-slate-400">Loading...</td></tr>
+                  Array.from({ length: 4 }).map((_, i) => (
+                    <tr key={i} className="border-b border-slate-100">
+                      <td className="px-4 py-3">
+                        <div className="flex items-center gap-3">
+                          <Skeleton className="h-8 w-8 rounded-full" />
+                          <Skeleton className="h-4 w-28 rounded" />
+                        </div>
+                      </td>
+                      <td className="px-4 py-3"><Skeleton className="h-4 w-24 rounded" /></td>
+                      <td className="px-4 py-3"><Skeleton className="h-4 w-24 rounded" /></td>
+                      <td className="px-4 py-3"><Skeleton className="h-4 w-16 rounded" /></td>
+                      <td className="px-4 py-3"><Skeleton className="h-4 w-16 rounded" /></td>
+                      <td className="px-4 py-3"><Skeleton className="h-4 w-14 rounded ml-auto" /></td>
+                    </tr>
+                  ))
                 ) : filteredAssignments.length === 0 ? (
                   <tr><td colSpan={6} className="px-4 py-12 text-center text-slate-400">No assignments found</td></tr>
                 ) : filteredAssignments.map((a, i) => (
@@ -218,7 +248,7 @@ export default function Transport() {
               <div><label className="mb-1 block text-sm font-medium text-slate-700">Driver Phone</label><input value={routeForm.driver_phone} onChange={(e) => setRouteForm({ ...routeForm, driver_phone: e.target.value })} className="w-full rounded-lg border border-slate-200 px-3 py-2.5 text-sm focus:outline-none focus:border-primary-500 focus:ring-2 focus:ring-primary-500/20" /></div>
               <div className="flex justify-end gap-3 pt-2">
                 <button type="button" onClick={() => setShowModal(false)} className="cursor-pointer rounded-lg border border-slate-200 px-4 py-2.5 text-sm font-medium text-slate-600 hover:bg-slate-50">Cancel</button>
-                <button type="submit" className="cursor-pointer rounded-lg bg-gradient-to-r from-cyan-600 to-blue-600 px-6 py-2.5 text-sm font-semibold text-white shadow-lg hover:shadow-xl">{editing ? 'Update' : 'Create'}</button>
+                <button type="submit" disabled={submitting} className="cursor-pointer rounded-lg bg-gradient-to-r from-cyan-600 to-blue-600 px-6 py-2.5 text-sm font-semibold text-white shadow-lg hover:shadow-xl disabled:opacity-60">{submitting ? 'Saving...' : editing ? 'Update' : 'Create'}</button>
               </div>
             </form>
           </motion.div>
@@ -245,7 +275,7 @@ export default function Transport() {
               </div>
               <div className="flex justify-end gap-3 pt-2">
                 <button type="button" onClick={() => setShowAssignModal(false)} className="cursor-pointer rounded-lg border border-slate-200 px-4 py-2.5 text-sm font-medium text-slate-600 hover:bg-slate-50">Cancel</button>
-                <button type="submit" className="cursor-pointer rounded-lg bg-gradient-to-r from-cyan-600 to-blue-600 px-6 py-2.5 text-sm font-semibold text-white shadow-lg">Assign</button>
+                <button type="submit" disabled={assignSubmitting} className="cursor-pointer rounded-lg bg-gradient-to-r from-cyan-600 to-blue-600 px-6 py-2.5 text-sm font-semibold text-white shadow-lg disabled:opacity-60">{assignSubmitting ? 'Saving...' : 'Assign'}</button>
               </div>
             </form>
           </motion.div>

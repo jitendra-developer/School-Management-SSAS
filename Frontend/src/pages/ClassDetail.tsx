@@ -2,6 +2,7 @@ import { useEffect, useState } from 'react'
 import { useParams, Link } from 'react-router-dom'
 import { motion } from 'framer-motion'
 import { HiOutlineArrowLeft, HiOutlineSearch, HiOutlineAcademicCap, HiOutlinePlus, HiOutlineUpload, HiOutlinePencil, HiOutlineTrash, HiOutlineX, HiOutlineEye, HiOutlineChevronLeft, HiOutlineChevronRight } from 'react-icons/hi'
+import Skeleton from '@/components/ui/Skeleton'
 import toast from 'react-hot-toast'
 import { classService } from '@/services/classService'
 import { studentService } from '@/services/studentService'
@@ -140,7 +141,50 @@ export default function ClassDetail() {
   }
 
   if (loading) {
-    return <div className="glass-card rounded-xl p-12 text-center text-slate-400">Loading...</div>
+    return (
+      <div className="space-y-6">
+        <div className="flex items-center gap-4">
+          <Skeleton className="h-14 w-14 rounded-xl" />
+          <div>
+            <Skeleton className="h-6 w-48 rounded" />
+            <Skeleton className="mt-1 h-4 w-24 rounded" />
+          </div>
+        </div>
+        <Skeleton className="h-12 w-full rounded-xl" />
+        <div className="glass-card rounded-xl overflow-hidden">
+          <div className="overflow-x-auto">
+            <table className="w-full text-sm">
+              <thead>
+                <tr className="border-b border-slate-200/60 bg-slate-50/50">
+                  {['Name', 'Roll No', 'DOB', 'Enrollment Date', 'Parent Name', 'Parent Phone', 'Parent Email', 'Actions'].map((h) => (
+                    <th key={h} className="px-4 py-3 text-left font-semibold text-slate-600">{h}</th>
+                  ))}
+                </tr>
+              </thead>
+              <tbody>
+                {Array.from({ length: 5 }).map((_, i) => (
+                  <tr key={i} className="border-b border-slate-100">
+                    <td className="px-4 py-3">
+                      <div className="flex items-center gap-3">
+                        <Skeleton className="h-9 w-9 rounded-full" />
+                        <Skeleton className="h-4 w-32 rounded" />
+                      </div>
+                    </td>
+                    <td className="px-4 py-3"><Skeleton className="h-4 w-14 rounded" /></td>
+                    <td className="px-4 py-3"><Skeleton className="h-4 w-24 rounded" /></td>
+                    <td className="px-4 py-3"><Skeleton className="h-4 w-24 rounded" /></td>
+                    <td className="px-4 py-3"><Skeleton className="h-4 w-20 rounded" /></td>
+                    <td className="px-4 py-3"><Skeleton className="h-4 w-20 rounded" /></td>
+                    <td className="px-4 py-3"><Skeleton className="h-4 w-24 rounded" /></td>
+                    <td className="px-4 py-3"><Skeleton className="h-4 w-16 rounded ml-auto" /></td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+        </div>
+      </div>
+    )
   }
 
   if (!cls) {

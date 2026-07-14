@@ -1,6 +1,7 @@
 import { useEffect, useState } from 'react'
 import { motion } from 'framer-motion'
 import { HiOutlineSearch, HiOutlinePlus, HiOutlinePencil, HiOutlineTrash, HiOutlineX, HiOutlineEye, HiOutlineCalendar } from 'react-icons/hi'
+import Skeleton from '@/components/ui/Skeleton'
 import toast from 'react-hot-toast'
 import { noticeService } from '@/services/noticeService'
 import type { Notice } from '@/types/notice'
@@ -19,6 +20,7 @@ export default function Notices() {
   const [loading, setLoading] = useState(true)
   const [search, setSearch] = useState('')
   const [showModal, setShowModal] = useState(false)
+  const [submitting, setSubmitting] = useState(false)
   const [editing, setEditing] = useState<Notice | null>(null)
   const [viewing, setViewing] = useState<Notice | null>(null)
   const [form, setForm] = useState({ title: '', content: '', category: 'general', posted_by: '', publish_date: '', expiry_date: '' })
@@ -35,6 +37,7 @@ export default function Notices() {
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
+    setSubmitting(true)
     try {
       if (editing) { await noticeService.update(editing.id, form); toast.success('Notice updated') }
       else { await noticeService.create(form); toast.success('Notice created') }
@@ -42,6 +45,7 @@ export default function Notices() {
       setForm({ title: '', content: '', category: 'general', posted_by: '', publish_date: '', expiry_date: '' })
       fetchNotices()
     } catch { toast.error('Operation failed') }
+    finally { setSubmitting(false) }
   }
 
   const handleEdit = (n: Notice) => {
@@ -95,7 +99,16 @@ export default function Notices() {
             </thead>
             <tbody>
               {loading ? (
-                <tr><td colSpan={6} className="px-4 py-12 text-center text-slate-400">Loading...</td></tr>
+                Array.from({ length: 4 }).map((_, i) => (
+                  <tr key={i} className="border-b border-slate-100">
+                    <td className="px-4 py-3"><Skeleton className="h-4 w-36 rounded" /></td>
+                    <td className="px-4 py-3"><Skeleton className="h-5 w-16 rounded-full" /></td>
+                    <td className="px-4 py-3"><Skeleton className="h-4 w-16 rounded" /></td>
+                    <td className="px-4 py-3"><Skeleton className="h-4 w-24 rounded" /></td>
+                    <td className="px-4 py-3"><Skeleton className="h-4 w-24 rounded" /></td>
+                    <td className="px-4 py-3"><Skeleton className="h-4 w-14 rounded ml-auto" /></td>
+                  </tr>
+                ))
               ) : filtered.length === 0 ? (
                 <tr><td colSpan={6} className="px-4 py-12 text-center text-slate-400">No notices found</td></tr>
               ) : filtered.map((n, i) => (
@@ -140,7 +153,7 @@ export default function Notices() {
               </div>
               <div className="flex justify-end gap-3 pt-2">
                 <button type="button" onClick={() => setShowModal(false)} className="cursor-pointer rounded-lg border border-slate-200 px-4 py-2.5 text-sm font-medium text-slate-600 hover:bg-slate-50">Cancel</button>
-                <button type="submit" className="cursor-pointer rounded-lg bg-gradient-to-r from-violet-600 to-purple-600 px-6 py-2.5 text-sm font-semibold text-white shadow-lg hover:shadow-xl">{editing ? 'Update' : 'Create'}</button>
+                <button type="submit" disabled={submitting} className="cursor-pointer rounded-lg bg-gradient-to-r from-violet-600 to-purple-600 px-6 py-2.5 text-sm font-semibold text-white shadow-lg hover:shadow-xl disabled:opacity-60">{submitting ? 'Saving...' : editing ? 'Update' : 'Create'}</button>
               </div>
             </form>
           </motion.div>

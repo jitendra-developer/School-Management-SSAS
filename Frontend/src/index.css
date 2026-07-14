@@ -101,6 +101,17 @@
 .scrollbar-none::-webkit-scrollbar { display: none; }
 .scrollbar-none { -ms-overflow-style: none; scrollbar-width: none; }
 
+@keyframes shimmer {
+  0% { background-position: 200% 0; }
+  100% { background-position: -200% 0; }
+}
+
+.skeleton-shimmer {
+  background: linear-gradient(120deg, #e8ecf1 25%, #fafcff 37%, #e8ecf1 63%);
+  background-size: 200% 100%;
+  animation: shimmer 1.4s ease-in-out infinite;
+}
+
 html.dark .glass,
 html.dark .glass-card {
   background: rgba(26, 39, 68, 0.8);
@@ -167,3 +178,8 @@ html.dark .hover\:border-slate-300:hover { border-color: rgba(99, 102, 241, 0.3)
 
 html.dark .from-primary-50 { --tw-gradient-from: rgba(99, 102, 241, 0.2); }
 html.dark .to-violet-50 { --tw-gradient-to: rgba(139, 92, 246, 0.2); }
+
+html.dark .skeleton-shimmer {
+  background: linear-gradient(120deg, #2d3a54 25%, #4a5c7a 37%, #2d3a54 63%);
+  background-size: 200% 100%;
+}

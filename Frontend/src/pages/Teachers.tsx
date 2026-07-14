@@ -1,9 +1,11 @@
 import { useEffect, useState } from 'react'
 import { motion } from 'framer-motion'
 import { HiOutlineSearch, HiOutlinePlus, HiOutlinePencil, HiOutlineTrash, HiOutlineX, HiOutlineEye, HiOutlineEyeOff } from 'react-icons/hi'
+import Skeleton from '@/components/ui/Skeleton'
 import toast from 'react-hot-toast'
 import { teacherService } from '@/services/teacherService'
 import { classService } from '@/services/classService'
+import { subjectService } from '@/services/subjectService'
 import type { Teacher } from '@/types/teacher'
 import type { Class } from '@/types/class'
 
@@ -20,6 +22,7 @@ const defaultForm = {
 export default function Teachers() {
   const [teachers, setTeachers] = useState<Teacher[]>([])
   const [classes, setClasses] = useState<Class[]>([])
+  const [allSubjectNames, setAllSubjectNames] = useState<string[]>([])
   const [loading, setLoading] = useState(true)
   const [search, setSearch] = useState('')
   const [showModal, setShowModal] = useState(false)
@@ -28,8 +31,10 @@ export default function Teachers() {
   const [editing, setEditing] = useState<Teacher | null>(null)
   const [form, setForm] = useState(defaultForm)
   const [showPassword, setShowPassword] = useState(false)
+  const [subjectSearch, setSubjectSearch] = useState('')
+  const [showSubjectSuggestions, setShowSubjectSuggestions] = useState(false)
 
-  useEffect(() => { fetchTeachers(); fetchClasses() }, [])
+  useEffect(() => { fetchTeachers(); fetchClasses(); fetchAllSubjects() }, [])
 
   const fetchTeachers = async () => {
     try {
@@ -46,8 +51,15 @@ export default function Teachers() {
     } catch { /* non-critical */ }
   }
 
+  const fetchAllSubjects = async () => {
+    try {
+      const { data } = await subjectService.getAll()
+      setAllSubjectNames(data.data || [])
+    } catch { /* ignore */ }
+  }
+
   const openCreate = () => {
-    setEditing(null); setForm(defaultForm); setShowModal(true)
+    setEditing(null); setForm(defaultForm); setSubjectSearch(''); setShowSubjectSuggestions(false); setShowModal(true)
   }
 
   const handleSubmit = async (e: React.FormEvent) => {
@@ -60,7 +72,7 @@ export default function Teachers() {
     try {
       if (editing) { await teacherService.update(editing.id, payload); toast.success('Teacher updated') }
       else { await teacherService.create(payload); toast.success('Teacher created') }
-      setShowModal(false); setEditing(null); setForm(defaultForm)
+      setShowModal(false); setEditing(null); setForm(defaultForm); setSubjectSearch('')
       fetchTeachers()
     } catch { toast.error('Operation failed') }
   }
@@ -73,7 +85,7 @@ export default function Teachers() {
       subject: t.subject || '', qualification: t.qualification || '',
       gender: t.gender || '', class_id: t.class_id || '', password: '',
     })
-    setShowModal(true)
+    setSubjectSearch(''); setShowSubjectSuggestions(false); setShowModal(true)
   }
 
   const handleView = (t: Teacher) => {
@@ -125,7 +137,21 @@ export default function Teachers() {
             </thead>
             <tbody>
               {loading ? (
-                <tr><td colSpan={6} className="px-4 py-12 text-center text-slate-400">Loading...</td></tr>
+                Array.from({ length: 4 }).map((_, i) => (
+                  <tr key={i} className="border-b border-slate-100">
+                    <td className="px-4 py-3">
+                      <div className="flex items-center gap-3">
+                        <Skeleton className="h-9 w-9 rounded-full" />
+                        <Skeleton className="h-4 w-28 rounded" />
+                      </div>
+                    </td>
+                    <td className="px-4 py-3"><Skeleton className="h-4 w-32 rounded" /></td>
+                    <td className="px-4 py-3"><Skeleton className="h-4 w-20 rounded" /></td>
+                    <td className="px-4 py-3"><Skeleton className="h-4 w-16 rounded" /></td>
+                    <td className="px-4 py-3"><Skeleton className="h-5 w-16 rounded-full" /></td>
+                    <td className="px-4 py-3"><Skeleton className="h-4 w-14 rounded ml-auto" /></td>
+                  </tr>
+                ))
               ) : filtered.length === 0 ? (
                 <tr><td colSpan={6} className="px-4 py-12 text-center text-slate-400">No teachers found</td></tr>
               ) : filtered.map((t, i) => (
@@ -171,7 +197,50 @@ export default function Teachers() {
                 <div><label className="mb-1 block text-sm font-medium text-slate-700">Phone</label><input value={form.phone} onChange={(e) => setForm({ ...form, phone: e.target.value })} className="w-full rounded-lg border border-slate-200 px-3 py-2.5 text-sm focus:outline-none focus:border-primary-500 focus:ring-2 focus:ring-primary-500/20" /></div>
               </div>
               <div className="grid grid-cols-2 gap-4">
-                <div><label className="mb-1 block text-sm font-medium text-slate-700">Subject</label><input value={form.subject} onChange={(e) => setForm({ ...form, subject: e.target.value })} className="w-full rounded-lg border border-slate-200 px-3 py-2.5 text-sm focus:outline-none focus:border-primary-500 focus:ring-2 focus:ring-primary-500/20" /></div>
+                <div><label className="mb-1 block text-sm font-medium text-slate-700">Subject</label>
+                  <div className="relative">
+                    <div className="flex w-full flex-wrap items-center gap-1 rounded-lg border border-slate-200 px-2 py-1.5 text-sm focus-within:border-primary-500 focus-within:ring-2 focus-within:ring-primary-500/20 min-h-[38px] cursor-text" onClick={() => document.getElementById('teacherSubjectInput')?.focus()}>
+                      {form.subject && (
+                        <span className="inline-flex items-center gap-1 rounded-md bg-gradient-to-r from-primary-500 to-violet-500 px-2 py-0.5 text-xs font-medium text-white shadow-sm">
+                          {form.subject}
+                          <button type="button" onClick={(e) => { e.stopPropagation(); setForm({ ...form, subject: '' }); setSubjectSearch('') }} className="cursor-pointer hover:text-red-200 transition-colors"><HiOutlineX className="h-3 w-3" /></button>
+                        </span>
+                      )}
+                      <input
+                        id="teacherSubjectInput"
+                        value={subjectSearch}
+                        onChange={(e) => { setSubjectSearch(e.target.value); setShowSubjectSuggestions(true) }}
+                        onFocus={() => setShowSubjectSuggestions(true)}
+                        onBlur={() => setTimeout(() => setShowSubjectSuggestions(false), 150)}
+                        onKeyDown={(e) => {
+                          if (e.key === 'Enter') {
+                            e.preventDefault()
+                            if (subjectSearch.trim()) { setForm({ ...form, subject: subjectSearch.trim() }); setSubjectSearch('') }
+                          }
+                        }}
+                        placeholder={form.subject ? '' : 'Search or type subject...'}
+                        className="min-w-[80px] flex-1 border-0 bg-transparent px-0 py-0.5 text-sm focus:outline-none"
+                      />
+                    </div>
+                    {subjectSearch && allSubjectNames.filter((s) => s.toLowerCase().includes(subjectSearch.toLowerCase())).length > 0 && (
+                      <div className="absolute left-0 right-0 top-full mt-1 z-10 max-h-40 overflow-y-auto rounded-lg border border-slate-200 bg-white shadow-lg">
+                        {allSubjectNames
+                          .filter((s) => s.toLowerCase().includes(subjectSearch.toLowerCase()))
+                          .slice(0, 8)
+                          .map((s) => (
+                            <button
+                              key={s}
+                              type="button"
+                              onMouseDown={(e) => { e.preventDefault(); setForm({ ...form, subject: s }); setSubjectSearch('') }}
+                              className="w-full cursor-pointer px-3 py-2 text-left text-sm text-slate-700 hover:bg-primary-50 hover:text-primary-700 transition-colors"
+                            >
+                              {s}
+                            </button>
+                          ))}
+                      </div>
+                    )}
+                  </div>
+                </div>
                 <div><label className="mb-1 block text-sm font-medium text-slate-700">Qualification</label><input value={form.qualification} onChange={(e) => setForm({ ...form, qualification: e.target.value })} className="w-full rounded-lg border border-slate-200 px-3 py-2.5 text-sm focus:outline-none focus:border-primary-500 focus:ring-2 focus:ring-primary-500/20" /></div>
               </div>
               <div className="grid grid-cols-2 gap-4">

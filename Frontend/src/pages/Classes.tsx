@@ -1,23 +1,29 @@
 import { useEffect, useState } from 'react'
 import { motion } from 'framer-motion'
 import { Link } from 'react-router-dom'
-import { HiOutlineAcademicCap, HiOutlineChevronRight, HiOutlineUsers, HiOutlinePlus, HiOutlineX, HiOutlineTrash, HiOutlinePencil, HiOutlineCurrencyRupee } from 'react-icons/hi'
+import { HiOutlineAcademicCap, HiOutlineChevronRight, HiOutlineUsers, HiOutlinePlus, HiOutlineX, HiOutlineTrash, HiOutlinePencil, HiOutlineCurrencyRupee, HiOutlineBookOpen } from 'react-icons/hi'
+import Skeleton from '@/components/ui/Skeleton'
 import toast from 'react-hot-toast'
 import { classService } from '@/services/classService'
 import { teacherService } from '@/services/teacherService'
+import { subjectService } from '@/services/subjectService'
 import type { Class } from '@/types/class'
 import type { Teacher } from '@/types/teacher'
 
 export default function Classes() {
   const [classes, setClasses] = useState<Class[]>([])
   const [teachers, setTeachers] = useState<Teacher[]>([])
+  const [allSubjectNames, setAllSubjectNames] = useState<string[]>([])
   const [loading, setLoading] = useState(true)
   const [showModal, setShowModal] = useState(false)
   const [editing, setEditing] = useState<Class | null>(null)
   const [form, setForm] = useState({ name: '', section: '', fee_amount: '', teacher_id: '' })
+  const [subjects, setSubjects] = useState<string[]>([])
+  const [subjectInput, setSubjectInput] = useState('')
+  const [showSuggestions, setShowSuggestions] = useState(false)
   const [submitting, setSubmitting] = useState(false)
 
-  useEffect(() => { fetchClasses(); fetchTeachers() }, [])
+  useEffect(() => { fetchClasses(); fetchTeachers(); fetchAllSubjects() }, [])
 
   const fetchClasses = async () => {
     try {
@@ -34,9 +40,18 @@ export default function Classes() {
     } catch { /* ignore */ }
   }
 
+  const fetchAllSubjects = async () => {
+    try {
+      const { data } = await subjectService.getAll()
+      setAllSubjectNames(data.data || [])
+    } catch { /* ignore */ }
+  }
+
   const openCreate = () => {
     setEditing(null)
     setForm({ name: '', section: '', fee_amount: '', teacher_id: '' })
+    setSubjects([])
+    setSubjectInput('')
     setShowModal(true)
   }
 
@@ -50,6 +65,8 @@ export default function Classes() {
       fee_amount: cls.fee_amount ? String(cls.fee_amount) : '',
       teacher_id: cls.teachers?.[0]?.id || '',
     })
+    setSubjects(cls.subjects?.map((s) => s.name) || [])
+    setSubjectInput('')
     setShowModal(true)
   }
 
@@ -64,15 +81,35 @@ export default function Classes() {
     } catch { toast.error('Failed to delete class') }
   }
 
+  const addSubject = () => {
+    const val = subjectInput.trim()
+    if (val && !subjects.includes(val)) {
+      setSubjects([...subjects, val])
+    }
+    setSubjectInput('')
+  }
+
+  const removeSubject = (idx: number) => {
+    setSubjects(subjects.filter((_, i) => i !== idx))
+  }
+
+  const handleSubjectKeyDown = (e: React.KeyboardEvent) => {
+    if (e.key === 'Enter' || e.key === ',') {
+      e.preventDefault()
+      addSubject()
+    }
+  }
+
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
     if (!form.name.trim()) return
     setSubmitting(true)
-    const payload = {
+    const payload: Record<string, unknown> = {
       name: form.name.trim(),
       section: form.section.trim() || undefined,
       fee_amount: form.fee_amount ? parseFloat(form.fee_amount) : null,
       teacher_id: form.teacher_id || null,
+      subjects: subjects,
     }
     try {
       if (editing) {
@@ -85,6 +122,8 @@ export default function Classes() {
       setShowModal(false)
       setEditing(null)
       setForm({ name: '', section: '', fee_amount: '', teacher_id: '' })
+      setSubjects([])
+      setSubjectInput('')
       fetchClasses()
     } catch (err: unknown) {
       const msg = (err as { response?: { data?: { message?: string } } })?.response?.data?.message || `Failed to ${editing ? 'update' : 'create'} class`
@@ -112,7 +151,20 @@ export default function Classes() {
       </motion.div>
 
       {loading ? (
-        <div className="glass-card rounded-xl p-12 text-center text-slate-400">Loading...</div>
+        <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
+          {Array.from({ length: 6 }).map((_, i) => (
+            <div key={i} className="glass-card rounded-xl p-5">
+              <div className="flex items-center gap-4">
+                <Skeleton className="h-12 w-12 rounded-xl" />
+                <div className="flex-1">
+                  <Skeleton className="h-5 w-32 rounded" />
+                  <Skeleton className="mt-2 h-4 w-24 rounded" />
+                </div>
+                <Skeleton className="h-5 w-5 rounded" />
+              </div>
+            </div>
+          ))}
+        </div>
       ) : classes.length === 0 ? (
         <div className="glass-card rounded-xl p-12 text-center text-slate-400">No classes found</div>
       ) : (
@@ -123,8 +175,9 @@ export default function Classes() {
               initial={{ opacity: 0, y: 12 }}
               animate={{ opacity: 1, y: 0 }}
               transition={{ delay: i * 0.05 }}
+              className="flex"
             >
-              <div className="glass-card group relative flex items-center gap-4 rounded-xl p-5 transition-all hover:shadow-lg">
+              <div className="glass-card group relative flex items-center gap-4 rounded-xl p-5 transition-all hover:shadow-lg w-full">
                 <Link
                   to={`/classes/${cls.id}`}
                   className="absolute inset-0 rounded-xl"
@@ -151,6 +204,12 @@ export default function Classes() {
                       <span className="inline-flex items-center gap-1 text-blue-600">
                         <HiOutlineAcademicCap className="h-4 w-4" />
                         {cls.teachers[0].first_name} {cls.teachers[0].last_name}
+                      </span>
+                    )}
+                    {cls.subjects && cls.subjects.length > 0 && (
+                      <span className="inline-flex items-center gap-1 text-violet-600">
+                        <HiOutlineBookOpen className="h-4 w-4" />
+                        {cls.subjects.length} subject{cls.subjects.length > 1 ? 's' : ''}
                       </span>
                     )}
                   </div>
@@ -244,6 +303,51 @@ export default function Classes() {
                       </option>
                     ))}
                 </select>
+              </div>
+              <div>
+                <label className="mb-1 block text-sm font-medium text-slate-700">Subjects</label>
+                <div className="flex flex-wrap gap-1.5 mb-2 min-h-[28px]">
+                  {subjects.map((s, i) => (
+                    <span key={i} className="inline-flex items-center gap-1 rounded-md bg-gradient-to-r from-primary-500 to-violet-500 px-2.5 py-1 text-xs font-medium text-white shadow-sm">
+                      {s}
+                      <button type="button" onClick={() => removeSubject(i)} className="cursor-pointer hover:text-red-200 transition-colors"><HiOutlineX className="h-3 w-3" /></button>
+                    </span>
+                  ))}
+                </div>
+                <div className="relative">
+                  <div className="flex gap-2">
+                    <div className="relative flex-1">
+                      <input
+                        value={subjectInput}
+                        onChange={(e) => { setSubjectInput(e.target.value); setShowSuggestions(true) }}
+                        onKeyDown={handleSubjectKeyDown}
+                        onFocus={() => setShowSuggestions(true)}
+                        onBlur={() => setTimeout(() => setShowSuggestions(false), 150)}
+                        placeholder="Search or type new subject..."
+                        className="w-full rounded-lg border border-slate-200 px-3 py-2 text-sm focus:outline-none focus:border-primary-500 focus:ring-2 focus:ring-primary-500/20"
+                      />
+                      {subjectInput && allSubjectNames.filter((s) => !subjects.includes(s) && s.toLowerCase().includes(subjectInput.toLowerCase())).length > 0 && (
+                        <div className="absolute left-0 right-0 top-full mt-1 z-10 max-h-40 overflow-y-auto rounded-lg border border-slate-200 bg-white shadow-lg">
+                          {allSubjectNames
+                            .filter((s) => !subjects.includes(s) && s.toLowerCase().includes(subjectInput.toLowerCase()))
+                            .slice(0, 8)
+                            .map((s) => (
+                              <button
+                                key={s}
+                                type="button"
+                                onMouseDown={(e) => { e.preventDefault(); setSubjects([...subjects, s]); setSubjectInput('') }}
+                                className="w-full cursor-pointer px-3 py-2 text-left text-sm text-slate-700 hover:bg-primary-50 hover:text-primary-700 transition-colors"
+                              >
+                                {s}
+                              </button>
+                            ))}
+                        </div>
+                      )}
+                    </div>
+                    <button type="button" onClick={addSubject} className="cursor-pointer rounded-lg bg-gradient-to-r from-primary-500 to-violet-500 px-4 py-2 text-sm font-medium text-white shadow-sm hover:shadow-md transition-all">Add</button>
+                  </div>
+                </div>
+                <p className="mt-1 text-xs text-slate-400">Type to search existing subjects or enter a new one</p>
               </div>
               <div className="flex justify-end gap-3 pt-2">
                 <button

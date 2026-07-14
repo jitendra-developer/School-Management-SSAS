@@ -1,6 +1,7 @@
 import { useEffect, useState } from 'react'
 import { motion } from 'framer-motion'
 import { HiOutlineSearch, HiOutlineMailOpen, HiOutlinePaperAirplane, HiOutlineX, HiOutlineReply } from 'react-icons/hi'
+import Skeleton from '@/components/ui/Skeleton'
 import toast from 'react-hot-toast'
 import { messageService } from '@/services/messageService'
 import type { Message } from '@/types/message'
@@ -76,7 +77,21 @@ export default function Messages() {
       <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} className="glass-card rounded-xl overflow-hidden">
         <div className="divide-y divide-slate-100">
           {loading ? (
-            <div className="px-4 py-12 text-center text-slate-400">Loading...</div>
+            <div className="divide-y divide-slate-100">
+              {Array.from({ length: 5 }).map((_, i) => (
+                <div key={i} className="flex items-start gap-4 px-4 py-3.5">
+                  <Skeleton className="h-10 w-10 rounded-full shrink-0" />
+                  <div className="flex-1 min-w-0">
+                    <div className="flex items-center justify-between gap-2">
+                      <Skeleton className="h-4 w-28 rounded" />
+                      <Skeleton className="h-3 w-16 rounded" />
+                    </div>
+                    <Skeleton className="mt-1 h-4 w-48 rounded" />
+                    <Skeleton className="mt-1 h-3 w-64 rounded" />
+                  </div>
+                </div>
+              ))}
+            </div>
           ) : filtered.length === 0 ? (
             <div className="px-4 py-12 text-center text-slate-400">No messages found</div>
           ) : filtered.map((m, i) => (

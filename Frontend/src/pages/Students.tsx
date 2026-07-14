@@ -9,6 +9,7 @@ import type { Student } from '@/types/student'
 import type { Class } from '@/types/class'
 import type { AttendanceRecord } from '@/types/attendance'
 import type { Fee } from '@/types/fee'
+import Skeleton from '@/components/ui/Skeleton'
 
 export default function Students() {
   const [students, setStudents] = useState<Student[]>([])
@@ -170,7 +171,6 @@ export default function Students() {
 
   return (
     <>
-      <style>{`@keyframes shimmer { 0%,100% { background-color: #e8e9eb } 50% { background-color: #e2e8f0 } } .skeleton-shimmer { animation: shimmer 1.5s ease-in-out infinite }`}</style>
       <div className="space-y-6">
       <motion.div initial={{ opacity: 0, y: -8 }} animate={{ opacity: 1, y: 0 }} className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
         <div>
@@ -224,17 +224,17 @@ export default function Students() {
                   <tr key={i} className="border-b border-slate-100">
                     <td className="px-4 py-3">
                       <div className="flex items-center gap-3">
-                        <div className="h-9 w-9 skeleton-shimmer rounded-full bg-slate-200" />
-                        <div className="h-4 w-32 skeleton-shimmer rounded bg-slate-200" />
+                        <Skeleton className="h-9 w-9 rounded-full" />
+                        <Skeleton className="h-4 w-32 rounded" />
                       </div>
                     </td>
-                    <td className="px-4 py-3"><div className="h-4 w-20 skeleton-shimmer rounded bg-slate-200" /></td>
-                    <td className="px-4 py-3"><div className="h-4 w-14 skeleton-shimmer rounded bg-slate-200" /></td>
-                    <td className="px-4 py-3"><div className="h-4 w-24 skeleton-shimmer rounded bg-slate-200" /></td>
-                    <td className="px-4 py-3"><div className="h-4 w-24 skeleton-shimmer rounded bg-slate-200" /></td>
-                    <td className="px-4 py-3"><div className="h-4 w-20 skeleton-shimmer rounded bg-slate-200" /></td>
-                    <td className="px-4 py-3"><div className="h-4 w-20 skeleton-shimmer rounded bg-slate-200" /></td>
-                    <td className="px-4 py-3"><div className="h-4 w-16 skeleton-shimmer rounded bg-slate-200 ml-auto" /></td>
+                    <td className="px-4 py-3"><Skeleton className="h-4 w-20 rounded" /></td>
+                    <td className="px-4 py-3"><Skeleton className="h-4 w-14 rounded" /></td>
+                    <td className="px-4 py-3"><Skeleton className="h-4 w-24 rounded" /></td>
+                    <td className="px-4 py-3"><Skeleton className="h-4 w-24 rounded" /></td>
+                    <td className="px-4 py-3"><Skeleton className="h-4 w-20 rounded" /></td>
+                    <td className="px-4 py-3"><Skeleton className="h-4 w-20 rounded" /></td>
+                    <td className="px-4 py-3"><Skeleton className="h-4 w-16 rounded ml-auto" /></td>
                   </tr>
                 ))
               ) : filtered.length === 0 ? (
@@ -284,16 +284,16 @@ export default function Students() {
                 </div>
               </div>
               {viewingLoading ? (
-                <div className="flex gap-3 pb-4 border-b border-slate-100">
-                  <div className="flex-1 rounded-lg bg-slate-50 p-3">
-                    <div className="h-3 w-24 skeleton-shimmer rounded bg-slate-200" />
-                    <div className="mt-2 h-6 w-20 skeleton-shimmer rounded bg-slate-200" />
+                  <div className="flex gap-3 pb-4 border-b border-slate-100">
+                    <div className="flex-1 rounded-lg bg-slate-50 p-3">
+                      <Skeleton className="h-3 w-24 rounded" />
+                      <Skeleton className="mt-2 h-6 w-20 rounded" />
+                    </div>
+                    <div className="flex-1 rounded-lg bg-slate-50 p-3">
+                      <Skeleton className="h-3 w-20 rounded" />
+                      <Skeleton className="mt-2 h-6 w-20 rounded" />
+                    </div>
                   </div>
-                  <div className="flex-1 rounded-lg bg-slate-50 p-3">
-                    <div className="h-3 w-20 skeleton-shimmer rounded bg-slate-200" />
-                    <div className="mt-2 h-6 w-20 skeleton-shimmer rounded bg-slate-200" />
-                  </div>
-                </div>
               ) : (
                 <div className="flex gap-3 pb-4 border-b border-slate-100">
                   <div className="flex-1 rounded-lg bg-slate-50 p-3">

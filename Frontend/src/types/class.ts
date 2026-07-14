@@ -1,3 +1,8 @@
+export interface SubjectRef {
+  id: string
+  name: string
+}
+
 export interface Class {
   id: string
   school_id: string
@@ -7,4 +12,5 @@ export interface Class {
   _count: { students: number }
   created_at: string
   teachers?: { id: string; first_name: string; last_name: string; email?: string }[]
+  subjects?: SubjectRef[]
 }
