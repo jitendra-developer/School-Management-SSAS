@@ -1,10 +1,14 @@
-import { useEffect, useState } from 'react'
+import { useEffect, useState, useRef } from 'react'
 import { motion } from 'framer-motion'
-import { HiOutlineSearch, HiOutlinePlus, HiOutlinePencil, HiOutlineTrash, HiOutlineX, HiOutlineTruck, HiOutlineUserGroup } from 'react-icons/hi'
+import { HiOutlineSearch, HiOutlinePlus, HiOutlinePencil, HiOutlineTrash, HiOutlineX, HiOutlineTruck, HiOutlineUserGroup, HiOutlineEye } from 'react-icons/hi'
 import Skeleton from '@/components/ui/Skeleton'
 import toast from 'react-hot-toast'
 import { transportService } from '@/services/transportService'
+import { studentService } from '@/services/studentService'
+import { classService } from '@/services/classService'
 import type { TransportRoute, TransportAssignment } from '@/types/transport'
+import type { Student } from '@/types/student'
+import type { Class } from '@/types/class'
 
 type TabType = 'routes' | 'assignments'
 
@@ -21,25 +25,93 @@ export default function Transport() {
   const [routeForm, setRouteForm] = useState({ route_name: '', vehicle_number: '', driver_name: '', driver_phone: '' })
   const [showAssignModal, setShowAssignModal] = useState(false)
   const [assignForm, setAssignForm] = useState({ route_id: '', student_id: '', pickup_point: '', pickup_time: '', drop_time: '' })
+  const [viewingRoute, setViewingRoute] = useState<TransportRoute | null>(null)
+  const [viewingAssignment, setViewingAssignment] = useState<TransportAssignment | null>(null)
+  const [editingAssignment, setEditingAssignment] = useState<TransportAssignment | null>(null)
+  const [editAssignForm, setEditAssignForm] = useState({ pickup_point: '', pickup_time: '', drop_time: '' })
+  const [editAssignSubmitting, setEditAssignSubmitting] = useState(false)
+
+  const [classes, setClasses] = useState<Class[]>([])
+  const [studentQuery, setStudentQuery] = useState('')
+  const [studentClassFilter, setStudentClassFilter] = useState('')
+  const [studentResults, setStudentResults] = useState<Student[]>([])
+  const [studentSearching, setStudentSearching] = useState(false)
+  const [selectedStudent, setSelectedStudent] = useState<Student | null>(null)
+  const [showStudentDropdown, setShowStudentDropdown] = useState(false)
+  const studentSearchTimer = useRef<ReturnType<typeof setTimeout> | null>(null)
+
+  const fetchIdRef = useRef(0)
 
   useEffect(() => { tab === 'routes' ? fetchRoutes() : fetchAssignments() }, [tab])
+  useEffect(() => { classService.getAll().then(({ data }) => setClasses(data.data || [])).catch(() => {}) }, [])
+
+  const searchStudents = (query: string, classId: string) => {
+    if (studentSearchTimer.current) clearTimeout(studentSearchTimer.current)
+    if (!query.trim() && !classId) { setStudentResults([]); return }
+    studentSearchTimer.current = setTimeout(async () => {
+      setStudentSearching(true)
+      try {
+        const params: Record<string, string> = { limit: '8' }
+        if (query.trim()) params.search = query.trim()
+        if (classId) params.class_id = classId
+        const { data } = await studentService.getAll(params)
+        setStudentResults(data.data?.students || [])
+      } catch { setStudentResults([]) }
+      finally { setStudentSearching(false) }
+    }, 300)
+  }
+
+  const handleStudentQueryChange = (value: string) => {
+    setStudentQuery(value)
+    setSelectedStudent(null)
+    setAssignForm((f) => ({ ...f, student_id: '' }))
+    setShowStudentDropdown(true)
+    searchStudents(value, studentClassFilter)
+  }
+
+  const handleClassFilterChange = (value: string) => {
+    setStudentClassFilter(value)
+    setShowStudentDropdown(true)
+    searchStudents(studentQuery, value)
+  }
+
+  const selectStudent = (s: Student) => {
+    setSelectedStudent(s)
+    setAssignForm((f) => ({ ...f, student_id: s.id }))
+    setStudentQuery(`${s.first_name} ${s.last_name}`)
+    setShowStudentDropdown(false)
+  }
+
+  const resetStudentPicker = () => {
+    setStudentQuery(''); setStudentClassFilter(''); setStudentResults([]); setSelectedStudent(null); setShowStudentDropdown(false)
+  }
 
   const fetchRoutes = async () => {
+    const requestId = ++fetchIdRef.current
     setLoading(true)
     try {
       const { data } = await transportService.getRoutes({ limit: '50' })
+      if (requestId !== fetchIdRef.current) return
       setRoutes(data.data || [])
-    } catch { toast.error('Failed to load routes') }
-    finally { setLoading(false) }
+    } catch {
+      if (requestId === fetchIdRef.current) toast.error('Failed to load routes')
+    } finally {
+      if (requestId === fetchIdRef.current) setLoading(false)
+    }
   }
 
   const fetchAssignments = async () => {
+    const requestId = ++fetchIdRef.current
     setLoading(true)
     try {
       const { data } = await transportService.getAssignments({ limit: '50' })
+      if (requestId !== fetchIdRef.current) return
       setAssignments(data.data?.assignments || [])
-    } catch { toast.error('Failed to load assignments') }
-    finally { setLoading(false) }
+    } catch {
+      if (requestId === fetchIdRef.current) toast.error('Failed to load assignments')
+    } finally {
+      if (requestId === fetchIdRef.current) setLoading(false)
+    }
   }
 
   const handleRouteSubmit = async (e: React.FormEvent) => {
@@ -69,12 +141,14 @@ export default function Transport() {
 
   const handleAssign = async (e: React.FormEvent) => {
     e.preventDefault()
+    if (!assignForm.student_id) { toast.error('Please select a student from the search results'); return }
     setAssignSubmitting(true)
     try {
       await transportService.assignStudent(assignForm)
       toast.success('Student assigned')
       setShowAssignModal(false)
       setAssignForm({ route_id: '', student_id: '', pickup_point: '', pickup_time: '', drop_time: '' })
+      resetStudentPicker()
       fetchAssignments()
     } catch { toast.error('Assignment failed') }
     finally { setAssignSubmitting(false) }
@@ -84,6 +158,24 @@ export default function Transport() {
     if (!confirm('Remove this assignment?')) return
     try { await transportService.removeAssignment(id); toast.success('Assignment removed'); fetchAssignments() }
     catch { toast.error('Remove failed') }
+  }
+
+  const openEditAssignment = (a: TransportAssignment) => {
+    setEditingAssignment(a)
+    setEditAssignForm({ pickup_point: a.pickup_point || '', pickup_time: a.pickup_time || '', drop_time: a.drop_time || '' })
+  }
+
+  const handleEditAssignmentSubmit = async (e: React.FormEvent) => {
+    e.preventDefault()
+    if (!editingAssignment) return
+    setEditAssignSubmitting(true)
+    try {
+      await transportService.updateAssignment(editingAssignment.id, editAssignForm)
+      toast.success('Assignment updated')
+      setEditingAssignment(null)
+      fetchAssignments()
+    } catch { toast.error('Update failed') }
+    finally { setEditAssignSubmitting(false) }
   }
 
   const filteredRoutes = routes.filter((r) =>
@@ -120,7 +212,7 @@ export default function Transport() {
               <HiOutlinePlus className="h-4 w-4" /> Add Route
             </button>
           ) : (
-            <button onClick={() => { setAssignForm({ route_id: '', student_id: '', pickup_point: '', pickup_time: '', drop_time: '' }); setShowAssignModal(true) }} className="inline-flex cursor-pointer items-center gap-2 rounded-xl bg-gradient-to-r from-cyan-600 to-blue-600 px-5 py-2.5 text-sm font-semibold text-white shadow-lg shadow-cyan-600/25 transition-all hover:shadow-xl hover:scale-[1.02]">
+            <button onClick={() => { setAssignForm({ route_id: '', student_id: '', pickup_point: '', pickup_time: '', drop_time: '' }); resetStudentPicker(); setShowAssignModal(true) }} className="inline-flex cursor-pointer items-center gap-2 rounded-xl bg-gradient-to-r from-cyan-600 to-blue-600 px-5 py-2.5 text-sm font-semibold text-white shadow-lg shadow-cyan-600/25 transition-all hover:shadow-xl hover:scale-[1.02]">
               <HiOutlinePlus className="h-4 w-4" /> Assign Student
             </button>
           )}
@@ -170,6 +262,7 @@ export default function Transport() {
                     <td className="px-4 py-3 text-slate-600">{r.driver_phone || '—'}</td>
                     <td className="px-4 py-3"><span className="rounded-full bg-cyan-100 px-2.5 py-0.5 text-xs font-medium text-cyan-700">{r._count?.assignments || 0}</span></td>
                     <td className="px-4 py-3 text-right">
+                      <button onClick={() => setViewingRoute(r)} className="cursor-pointer rounded-lg p-1.5 text-slate-400 hover:bg-slate-100 hover:text-slate-600"><HiOutlineEye className="h-4 w-4" /></button>
                       <button onClick={() => handleRouteEdit(r)} className="cursor-pointer rounded-lg p-1.5 text-slate-400 hover:bg-primary-50 hover:text-primary-600"><HiOutlinePencil className="h-4 w-4" /></button>
                       <button onClick={() => handleRouteDelete(r.id)} className="cursor-pointer rounded-lg p-1.5 text-slate-400 hover:bg-red-50 hover:text-red-500"><HiOutlineTrash className="h-4 w-4" /></button>
                     </td>
@@ -221,6 +314,8 @@ export default function Transport() {
                     <td className="px-4 py-3 text-slate-600">{a.pickup_time || '—'}</td>
                     <td className="px-4 py-3 text-slate-600">{a.drop_time || '—'}</td>
                     <td className="px-4 py-3 text-right">
+                      <button onClick={() => setViewingAssignment(a)} className="cursor-pointer rounded-lg p-1.5 text-slate-400 hover:bg-slate-100 hover:text-slate-600"><HiOutlineEye className="h-4 w-4" /></button>
+                      <button onClick={() => openEditAssignment(a)} className="cursor-pointer rounded-lg p-1.5 text-slate-400 hover:bg-primary-50 hover:text-primary-600"><HiOutlinePencil className="h-4 w-4" /></button>
                       <button onClick={() => handleRemoveAssignment(a.id)} className="cursor-pointer rounded-lg p-1.5 text-slate-400 hover:bg-red-50 hover:text-red-500"><HiOutlineTrash className="h-4 w-4" /></button>
                     </td>
                   </motion.tr>
@@ -234,12 +329,12 @@ export default function Transport() {
       {showModal && (
         <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
           <div className="fixed inset-0 bg-black/30 backdrop-blur-sm" onClick={() => setShowModal(false)} />
-          <motion.div initial={{ opacity: 0, scale: 0.95 }} animate={{ opacity: 1, scale: 1 }} className="relative w-full max-w-lg rounded-2xl bg-white p-6 shadow-2xl">
-            <div className="mb-6 flex items-center justify-between">
+          <motion.div initial={{ opacity: 0, scale: 0.95 }} animate={{ opacity: 1, scale: 1 }} className="relative flex w-full max-w-lg max-h-[90vh] flex-col rounded-2xl bg-white shadow-2xl">
+            <div className="flex items-center justify-between px-6 pt-6 pb-4">
               <h2 className="text-lg font-bold text-slate-800">{editing ? 'Edit Route' : 'Add Route'}</h2>
               <button onClick={() => setShowModal(false)} className="cursor-pointer rounded-lg p-1.5 text-slate-400 hover:bg-slate-100"><HiOutlineX className="h-5 w-5" /></button>
             </div>
-            <form onSubmit={handleRouteSubmit} className="space-y-4">
+            <form onSubmit={handleRouteSubmit} className="flex-1 space-y-4 overflow-y-auto px-6 pb-6">
               <div><label className="mb-1 block text-sm font-medium text-slate-700">Route Name</label><input required value={routeForm.route_name} onChange={(e) => setRouteForm({ ...routeForm, route_name: e.target.value })} className="w-full rounded-lg border border-slate-200 px-3 py-2.5 text-sm focus:outline-none focus:border-primary-500 focus:ring-2 focus:ring-primary-500/20" /></div>
               <div className="grid grid-cols-2 gap-4">
                 <div><label className="mb-1 block text-sm font-medium text-slate-700">Vehicle Number</label><input value={routeForm.vehicle_number} onChange={(e) => setRouteForm({ ...routeForm, vehicle_number: e.target.value })} className="w-full rounded-lg border border-slate-200 px-3 py-2.5 text-sm focus:outline-none focus:border-primary-500 focus:ring-2 focus:ring-primary-500/20" /></div>
@@ -258,15 +353,63 @@ export default function Transport() {
       {showAssignModal && (
         <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
           <div className="fixed inset-0 bg-black/30 backdrop-blur-sm" onClick={() => setShowAssignModal(false)} />
-          <motion.div initial={{ opacity: 0, scale: 0.95 }} animate={{ opacity: 1, scale: 1 }} className="relative w-full max-w-lg rounded-2xl bg-white p-6 shadow-2xl">
-            <div className="mb-6 flex items-center justify-between">
+          <motion.div initial={{ opacity: 0, scale: 0.95 }} animate={{ opacity: 1, scale: 1 }} className="relative flex w-full max-w-lg max-h-[90vh] flex-col rounded-2xl bg-white shadow-2xl">
+            <div className="flex items-center justify-between px-6 pt-6 pb-4">
               <h2 className="text-lg font-bold text-slate-800">Assign Student</h2>
               <button onClick={() => setShowAssignModal(false)} className="cursor-pointer rounded-lg p-1.5 text-slate-400 hover:bg-slate-100"><HiOutlineX className="h-5 w-5" /></button>
             </div>
-            <form onSubmit={handleAssign} className="space-y-4">
-              <div className="grid grid-cols-2 gap-4">
-                <div><label className="mb-1 block text-sm font-medium text-slate-700">Route ID</label><input required value={assignForm.route_id} onChange={(e) => setAssignForm({ ...assignForm, route_id: e.target.value })} placeholder="Enter route ID" className="w-full rounded-lg border border-slate-200 px-3 py-2.5 text-sm focus:outline-none focus:border-primary-500 focus:ring-2 focus:ring-primary-500/20" /></div>
-                <div><label className="mb-1 block text-sm font-medium text-slate-700">Student ID</label><input required value={assignForm.student_id} onChange={(e) => setAssignForm({ ...assignForm, student_id: e.target.value })} placeholder="Enter student ID" className="w-full rounded-lg border border-slate-200 px-3 py-2.5 text-sm focus:outline-none focus:border-primary-500 focus:ring-2 focus:ring-primary-500/20" /></div>
+            <form onSubmit={handleAssign} className="flex-1 space-y-4 overflow-y-auto px-6 pb-6">
+              <div>
+                <label className="mb-1 block text-sm font-medium text-slate-700">Route</label>
+                <select required value={assignForm.route_id} onChange={(e) => setAssignForm({ ...assignForm, route_id: e.target.value })} className="w-full rounded-lg border border-slate-200 px-3 py-2.5 text-sm focus:outline-none focus:border-primary-500 focus:ring-2 focus:ring-primary-500/20">
+                  <option value="">Select route</option>
+                  {routes.map((r) => (
+                    <option key={r.id} value={r.id}>{r.route_name}{r.vehicle_number ? ` — ${r.vehicle_number}` : ''}</option>
+                  ))}
+                </select>
+              </div>
+              <div className="relative">
+                <label className="mb-1 block text-sm font-medium text-slate-700">Student</label>
+                <div className="flex gap-2">
+                  <select value={studentClassFilter} onChange={(e) => handleClassFilterChange(e.target.value)} className="w-28 shrink-0 rounded-lg border border-slate-200 px-2 py-2.5 text-xs focus:outline-none focus:border-primary-500 focus:ring-2 focus:ring-primary-500/20">
+                    <option value="">All classes</option>
+                    {classes.map((c) => (
+                      <option key={c.id} value={c.id}>{c.name}{c.section ? ` - ${c.section}` : ''}</option>
+                    ))}
+                  </select>
+                  <input
+                    value={studentQuery}
+                    onChange={(e) => handleStudentQueryChange(e.target.value)}
+                    onFocus={() => setShowStudentDropdown(true)}
+                    onBlur={() => setTimeout(() => setShowStudentDropdown(false), 150)}
+                    placeholder="Search by name, roll no, phone..."
+                    className="w-full rounded-lg border border-slate-200 px-3 py-2.5 text-sm focus:outline-none focus:border-primary-500 focus:ring-2 focus:ring-primary-500/20"
+                  />
+                </div>
+                {showStudentDropdown && (studentQuery.trim() || studentClassFilter) && (
+                  <div className="absolute z-10 mt-1 max-h-56 w-full overflow-y-auto rounded-lg border border-slate-200 bg-white shadow-lg">
+                    {studentSearching ? (
+                      <div className="px-3 py-3 text-sm text-slate-400">Searching...</div>
+                    ) : studentResults.length === 0 ? (
+                      <div className="px-3 py-3 text-sm text-slate-400">No students found</div>
+                    ) : studentResults.map((s) => (
+                      <button type="button" key={s.id} onMouseDown={() => selectStudent(s)} className="flex w-full cursor-pointer flex-col items-start gap-0.5 px-3 py-2 text-left hover:bg-cyan-50">
+                        <span className="text-sm font-medium text-slate-700">{s.first_name} {s.last_name}</span>
+                        <span className="text-xs text-slate-400">
+                          {s.class ? `${s.class.name}${s.class.section ? ' - ' + s.class.section : ''}` : 'No class'}
+                          {s.roll_number ? ` • Roll ${s.roll_number}` : ''}
+                          {s.parent_phone ? ` • ${s.parent_phone}` : ''}
+                        </span>
+                      </button>
+                    ))}
+                  </div>
+                )}
+                {selectedStudent && (
+                  <p className="mt-1 text-xs text-emerald-600">
+                    Selected: {selectedStudent.first_name} {selectedStudent.last_name}
+                    {selectedStudent.class ? ` (${selectedStudent.class.name}${selectedStudent.class.section ? '-' + selectedStudent.class.section : ''}${selectedStudent.roll_number ? `, Roll ${selectedStudent.roll_number}` : ''})` : ''}
+                  </p>
+                )}
               </div>
               <div><label className="mb-1 block text-sm font-medium text-slate-700">Pickup Point</label><input value={assignForm.pickup_point} onChange={(e) => setAssignForm({ ...assignForm, pickup_point: e.target.value })} className="w-full rounded-lg border border-slate-200 px-3 py-2.5 text-sm focus:outline-none focus:border-primary-500 focus:ring-2 focus:ring-primary-500/20" /></div>
               <div className="grid grid-cols-2 gap-4">
@@ -276,6 +419,78 @@ export default function Transport() {
               <div className="flex justify-end gap-3 pt-2">
                 <button type="button" onClick={() => setShowAssignModal(false)} className="cursor-pointer rounded-lg border border-slate-200 px-4 py-2.5 text-sm font-medium text-slate-600 hover:bg-slate-50">Cancel</button>
                 <button type="submit" disabled={assignSubmitting} className="cursor-pointer rounded-lg bg-gradient-to-r from-cyan-600 to-blue-600 px-6 py-2.5 text-sm font-semibold text-white shadow-lg disabled:opacity-60">{assignSubmitting ? 'Saving...' : 'Assign'}</button>
+              </div>
+            </form>
+          </motion.div>
+        </div>
+      )}
+
+      {viewingRoute && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
+          <div className="fixed inset-0 bg-black/30 backdrop-blur-sm" onClick={() => setViewingRoute(null)} />
+          <motion.div initial={{ opacity: 0, scale: 0.95 }} animate={{ opacity: 1, scale: 1 }} className="relative flex w-full max-w-md max-h-[90vh] flex-col rounded-2xl bg-white shadow-2xl">
+            <div className="flex items-center justify-between px-6 pt-6 pb-4">
+              <h2 className="text-lg font-bold text-slate-800">Route Details</h2>
+              <button onClick={() => setViewingRoute(null)} className="cursor-pointer rounded-lg p-1.5 text-slate-400 hover:bg-slate-100"><HiOutlineX className="h-5 w-5" /></button>
+            </div>
+            <div className="flex-1 space-y-4 overflow-y-auto px-6 pb-6">
+              <div className="grid grid-cols-2 gap-4 text-sm">
+                <div><p className="text-slate-400">Route Name</p><p className="font-medium text-slate-700">{viewingRoute.route_name}</p></div>
+                <div><p className="text-slate-400">Vehicle Number</p><p className="font-medium text-slate-700">{viewingRoute.vehicle_number || '—'}</p></div>
+                <div><p className="text-slate-400">Driver Name</p><p className="font-medium text-slate-700">{viewingRoute.driver_name || '—'}</p></div>
+                <div><p className="text-slate-400">Driver Phone</p><p className="font-medium text-slate-700">{viewingRoute.driver_phone || '—'}</p></div>
+                <div><p className="text-slate-400">Students Assigned</p><p className="font-medium text-slate-700">{viewingRoute._count?.assignments || 0}</p></div>
+              </div>
+            </div>
+            <div className="flex justify-end px-6 pt-2 pb-6">
+              <button onClick={() => setViewingRoute(null)} className="cursor-pointer rounded-lg border border-slate-200 px-4 py-2.5 text-sm font-medium text-slate-600 hover:bg-slate-50">Close</button>
+            </div>
+          </motion.div>
+        </div>
+      )}
+
+      {viewingAssignment && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
+          <div className="fixed inset-0 bg-black/30 backdrop-blur-sm" onClick={() => setViewingAssignment(null)} />
+          <motion.div initial={{ opacity: 0, scale: 0.95 }} animate={{ opacity: 1, scale: 1 }} className="relative flex w-full max-w-md max-h-[90vh] flex-col rounded-2xl bg-white shadow-2xl">
+            <div className="flex items-center justify-between px-6 pt-6 pb-4">
+              <h2 className="text-lg font-bold text-slate-800">Assignment Details</h2>
+              <button onClick={() => setViewingAssignment(null)} className="cursor-pointer rounded-lg p-1.5 text-slate-400 hover:bg-slate-100"><HiOutlineX className="h-5 w-5" /></button>
+            </div>
+            <div className="flex-1 space-y-4 overflow-y-auto px-6 pb-6">
+              <div className="grid grid-cols-2 gap-4 text-sm">
+                <div><p className="text-slate-400">Student</p><p className="font-medium text-slate-700">{viewingAssignment.student?.first_name} {viewingAssignment.student?.last_name}</p></div>
+                <div><p className="text-slate-400">Route</p><p className="font-medium text-slate-700">{viewingAssignment.route?.route_name || '—'}</p></div>
+                <div><p className="text-slate-400">Pickup Point</p><p className="font-medium text-slate-700">{viewingAssignment.pickup_point || '—'}</p></div>
+                <div><p className="text-slate-400">Pickup Time</p><p className="font-medium text-slate-700">{viewingAssignment.pickup_time || '—'}</p></div>
+                <div><p className="text-slate-400">Drop Time</p><p className="font-medium text-slate-700">{viewingAssignment.drop_time || '—'}</p></div>
+              </div>
+            </div>
+            <div className="flex justify-end px-6 pt-2 pb-6">
+              <button onClick={() => setViewingAssignment(null)} className="cursor-pointer rounded-lg border border-slate-200 px-4 py-2.5 text-sm font-medium text-slate-600 hover:bg-slate-50">Close</button>
+            </div>
+          </motion.div>
+        </div>
+      )}
+
+      {editingAssignment && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
+          <div className="fixed inset-0 bg-black/30 backdrop-blur-sm" onClick={() => setEditingAssignment(null)} />
+          <motion.div initial={{ opacity: 0, scale: 0.95 }} animate={{ opacity: 1, scale: 1 }} className="relative flex w-full max-w-md max-h-[90vh] flex-col rounded-2xl bg-white shadow-2xl">
+            <div className="flex items-center justify-between px-6 pt-6 pb-4">
+              <h2 className="text-lg font-bold text-slate-800">Edit Assignment</h2>
+              <button onClick={() => setEditingAssignment(null)} className="cursor-pointer rounded-lg p-1.5 text-slate-400 hover:bg-slate-100"><HiOutlineX className="h-5 w-5" /></button>
+            </div>
+            <form onSubmit={handleEditAssignmentSubmit} className="flex-1 space-y-4 overflow-y-auto px-6 pb-6">
+              <p className="text-sm text-slate-500">{editingAssignment.student?.first_name} {editingAssignment.student?.last_name} — {editingAssignment.route?.route_name}</p>
+              <div><label className="mb-1 block text-sm font-medium text-slate-700">Pickup Point</label><input value={editAssignForm.pickup_point} onChange={(e) => setEditAssignForm({ ...editAssignForm, pickup_point: e.target.value })} className="w-full rounded-lg border border-slate-200 px-3 py-2.5 text-sm focus:outline-none focus:border-primary-500 focus:ring-2 focus:ring-primary-500/20" /></div>
+              <div className="grid grid-cols-2 gap-4">
+                <div><label className="mb-1 block text-sm font-medium text-slate-700">Pickup Time</label><input type="time" value={editAssignForm.pickup_time} onChange={(e) => setEditAssignForm({ ...editAssignForm, pickup_time: e.target.value })} className="w-full rounded-lg border border-slate-200 px-3 py-2.5 text-sm focus:outline-none focus:border-primary-500 focus:ring-2 focus:ring-primary-500/20" /></div>
+                <div><label className="mb-1 block text-sm font-medium text-slate-700">Drop Time</label><input type="time" value={editAssignForm.drop_time} onChange={(e) => setEditAssignForm({ ...editAssignForm, drop_time: e.target.value })} className="w-full rounded-lg border border-slate-200 px-3 py-2.5 text-sm focus:outline-none focus:border-primary-500 focus:ring-2 focus:ring-primary-500/20" /></div>
+              </div>
+              <div className="flex justify-end gap-3 pt-2">
+                <button type="button" onClick={() => setEditingAssignment(null)} className="cursor-pointer rounded-lg border border-slate-200 px-4 py-2.5 text-sm font-medium text-slate-600 hover:bg-slate-50">Cancel</button>
+                <button type="submit" disabled={editAssignSubmitting} className="cursor-pointer rounded-lg bg-gradient-to-r from-cyan-600 to-blue-600 px-6 py-2.5 text-sm font-semibold text-white shadow-lg disabled:opacity-60">{editAssignSubmitting ? 'Saving...' : 'Save Changes'}</button>
               </div>
             </form>
           </motion.div>

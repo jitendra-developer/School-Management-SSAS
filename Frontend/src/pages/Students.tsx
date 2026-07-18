@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react'
+import { useEffect, useRef, useState } from 'react'
 import { motion } from 'framer-motion'
 import { HiOutlineSearch, HiOutlinePlus, HiOutlinePencil, HiOutlineTrash, HiOutlineX, HiOutlineEye, HiOutlineChevronLeft, HiOutlineChevronRight } from 'react-icons/hi'
 import toast from 'react-hot-toast'
@@ -32,6 +32,7 @@ export default function Students() {
     enrollment_date: '',
   })
   const [formErrors, setFormErrors] = useState<Record<string, string>>({})
+  const fetchIdRef = useRef(0)
 
   const clearError = (field: string) => {
     setFormErrors((prev) => { const n = { ...prev }; delete n[field]; return n })
@@ -69,14 +70,20 @@ export default function Students() {
   useEffect(() => { fetchStudents() }, [selectedClass, feeStatus])
 
   const fetchStudents = async () => {
+    const requestId = ++fetchIdRef.current
+    setLoading(true)
     try {
       const params: Record<string, string> = { limit: '50' }
       if (selectedClass) params.class_id = selectedClass
       if (feeStatus) params.fee_status = feeStatus
       const { data } = await studentService.getAll(params)
+      if (requestId !== fetchIdRef.current) return
       setStudents(data.data?.students || [])
-    } catch { toast.error('Failed to load students') }
-    finally { setLoading(false) }
+    } catch {
+      if (requestId === fetchIdRef.current) toast.error('Failed to load students')
+    } finally {
+      if (requestId === fetchIdRef.current) setLoading(false)
+    }
   }
 
   const handleSubmit = async () => {
@@ -268,12 +275,12 @@ export default function Students() {
       {viewing && (
         <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
           <div className="fixed inset-0 bg-black/30 backdrop-blur-sm" onClick={closeView} />
-          <motion.div initial={{ opacity: 0, scale: 0.95 }} animate={{ opacity: 1, scale: 1 }} className="relative w-full max-w-lg rounded-2xl bg-white p-6 shadow-2xl">
-            <div className="mb-6 flex items-center justify-between">
+          <motion.div initial={{ opacity: 0, scale: 0.95 }} animate={{ opacity: 1, scale: 1 }} className="relative flex w-full max-w-lg max-h-[90vh] flex-col rounded-2xl bg-white shadow-2xl">
+            <div className="flex items-center justify-between px-6 pt-6 pb-4">
               <h2 className="text-lg font-bold text-slate-800">Student Details</h2>
               <button onClick={closeView} className="cursor-pointer rounded-lg p-1.5 text-slate-400 hover:bg-slate-100"><HiOutlineX className="h-5 w-5" /></button>
             </div>
-            <div className="space-y-4">
+            <div className="flex-1 space-y-4 overflow-y-auto px-6">
               <div className="flex items-center gap-4 pb-4 border-b border-slate-100">
                 <div className="flex h-14 w-14 items-center justify-center rounded-full bg-gradient-to-br from-primary-400 to-violet-500 text-lg font-bold text-white">
                   {viewing.first_name[0]}{viewing.last_name[0]}
@@ -375,7 +382,7 @@ export default function Students() {
                 </div>
               )}
             </div>
-            <div className="mt-6 flex justify-end">
+            <div className="flex justify-end px-6 pt-6 pb-6">
               <button onClick={closeView} className="cursor-pointer rounded-lg border border-slate-200 px-4 py-2.5 text-sm font-medium text-slate-600 hover:bg-slate-50">Close</button>
             </div>
           </motion.div>

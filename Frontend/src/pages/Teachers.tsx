@@ -1,6 +1,6 @@
 import { useEffect, useState } from 'react'
 import { motion } from 'framer-motion'
-import { HiOutlineSearch, HiOutlinePlus, HiOutlinePencil, HiOutlineTrash, HiOutlineX, HiOutlineEye, HiOutlineEyeOff } from 'react-icons/hi'
+import { HiOutlineSearch, HiOutlineFilter, HiOutlinePlus, HiOutlinePencil, HiOutlineTrash, HiOutlineX, HiOutlineEye, HiOutlineEyeOff } from 'react-icons/hi'
 import Skeleton from '@/components/ui/Skeleton'
 import toast from 'react-hot-toast'
 import { teacherService } from '@/services/teacherService'
@@ -17,6 +17,7 @@ const statusColors: Record<string, string> = {
 const defaultForm = {
   first_name: '', last_name: '', email: '', phone: '',
   subject: '', qualification: '', gender: '', class_id: '', password: '',
+  class_ids: [] as string[],
 }
 
 export default function Teachers() {
@@ -25,6 +26,9 @@ export default function Teachers() {
   const [allSubjectNames, setAllSubjectNames] = useState<string[]>([])
   const [loading, setLoading] = useState(true)
   const [search, setSearch] = useState('')
+  const [classFilter, setClassFilter] = useState('')
+  const [subjectFilter, setSubjectFilter] = useState('')
+  const [classTeacherFilter, setClassTeacherFilter] = useState('')
   const [showModal, setShowModal] = useState(false)
   const [showViewModal, setShowViewModal] = useState(false)
   const [viewing, setViewing] = useState<Teacher | null>(null)
@@ -33,6 +37,8 @@ export default function Teachers() {
   const [showPassword, setShowPassword] = useState(false)
   const [subjectSearch, setSubjectSearch] = useState('')
   const [showSubjectSuggestions, setShowSubjectSuggestions] = useState(false)
+  const [classSearch, setClassSearch] = useState('')
+  const [showClassSuggestions, setShowClassSuggestions] = useState(false)
 
   useEffect(() => { fetchTeachers(); fetchClasses(); fetchAllSubjects() }, [])
 
@@ -59,7 +65,8 @@ export default function Teachers() {
   }
 
   const openCreate = () => {
-    setEditing(null); setForm(defaultForm); setSubjectSearch(''); setShowSubjectSuggestions(false); setShowModal(true)
+    setEditing(null); setForm(defaultForm); setSubjectSearch(''); setShowSubjectSuggestions(false)
+    setClassSearch(''); setShowClassSuggestions(false); setShowModal(true)
   }
 
   const handleSubmit = async (e: React.FormEvent) => {
@@ -84,8 +91,10 @@ export default function Teachers() {
       email: t.email || '', phone: t.phone || '',
       subject: t.subject || '', qualification: t.qualification || '',
       gender: t.gender || '', class_id: t.class_id || '', password: '',
+      class_ids: t.classes?.map((c) => c.id) || [],
     })
-    setSubjectSearch(''); setShowSubjectSuggestions(false); setShowModal(true)
+    setSubjectSearch(''); setShowSubjectSuggestions(false)
+    setClassSearch(''); setShowClassSuggestions(false); setShowModal(true)
   }
 
   const handleView = (t: Teacher) => {
@@ -98,10 +107,15 @@ export default function Teachers() {
     catch { toast.error('Delete failed') }
   }
 
-  const filtered = teachers.filter((t) =>
-    `${t.first_name} ${t.last_name}`.toLowerCase().includes(search.toLowerCase()) ||
-    (t.subject && t.subject.toLowerCase().includes(search.toLowerCase()))
-  )
+  const filtered = teachers.filter((t) => {
+    const matchesSearch =
+      `${t.first_name} ${t.last_name}`.toLowerCase().includes(search.toLowerCase()) ||
+      (t.subject && t.subject.toLowerCase().includes(search.toLowerCase()))
+    const matchesClass = !classFilter || (t.classes || []).some((c) => c.id === classFilter)
+    const matchesSubject = !subjectFilter || t.subject === subjectFilter
+    const matchesClassTeacher = !classTeacherFilter || t.class_id === classTeacherFilter
+    return matchesSearch && matchesClass && matchesSubject && matchesClassTeacher
+  })
 
   return (
     <div className="space-y-6">
@@ -116,9 +130,50 @@ export default function Teachers() {
       </motion.div>
 
       <div className="glass-card rounded-xl p-4">
-        <div className="relative max-w-md">
-          <HiOutlineSearch className="absolute left-3 top-1/2 h-5 w-5 -translate-y-1/2 text-slate-400" />
-          <input type="text" placeholder="Search teachers..." value={search} onChange={(e) => setSearch(e.target.value)} className="w-full rounded-lg border-0 bg-slate-100/80 py-2.5 pl-10 pr-4 text-sm focus:outline-none focus:ring-2 focus:ring-primary-500/30" />
+        <div className="flex flex-col gap-3 sm:flex-row sm:items-center">
+          <div className="relative flex-1 max-w-xs">
+            <HiOutlineSearch className="absolute left-3 top-1/2 h-5 w-5 -translate-y-1/2 text-slate-400" />
+            <input type="text" placeholder="Search teachers..." value={search} onChange={(e) => setSearch(e.target.value)} className="w-full rounded-lg border-0 bg-slate-100/80 py-2.5 pl-10 pr-4 text-sm focus:outline-none focus:ring-2 focus:ring-primary-500/30" />
+          </div>
+          <div className="relative">
+            <HiOutlineFilter className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-slate-400" />
+            <select
+              value={classFilter}
+              onChange={(e) => setClassFilter(e.target.value)}
+              className="rounded-lg border-0 bg-slate-100/80 py-2.5 pl-9 pr-8 text-sm focus:outline-none focus:ring-2 focus:ring-primary-500/30 appearance-none"
+            >
+              <option value="">All Classes</option>
+              {classes.map((c) => (
+                <option key={c.id} value={c.id}>{c.name}{c.section ? ` - ${c.section}` : ''}</option>
+              ))}
+            </select>
+          </div>
+          <div className="relative">
+            <HiOutlineFilter className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-slate-400" />
+            <select
+              value={subjectFilter}
+              onChange={(e) => setSubjectFilter(e.target.value)}
+              className="rounded-lg border-0 bg-slate-100/80 py-2.5 pl-9 pr-8 text-sm focus:outline-none focus:ring-2 focus:ring-primary-500/30 appearance-none"
+            >
+              <option value="">All Subjects</option>
+              {allSubjectNames.map((s) => (
+                <option key={s} value={s}>{s}</option>
+              ))}
+            </select>
+          </div>
+          <div className="relative">
+            <HiOutlineFilter className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-slate-400" />
+            <select
+              value={classTeacherFilter}
+              onChange={(e) => setClassTeacherFilter(e.target.value)}
+              className="rounded-lg border-0 bg-slate-100/80 py-2.5 pl-9 pr-8 text-sm focus:outline-none focus:ring-2 focus:ring-primary-500/30 appearance-none"
+            >
+              <option value="">All Class Teachers</option>
+              {classes.map((c) => (
+                <option key={c.id} value={c.id}>{c.name}{c.section ? ` - ${c.section}` : ''}</option>
+              ))}
+            </select>
+          </div>
         </div>
       </div>
 
@@ -130,7 +185,7 @@ export default function Teachers() {
                 <th className="px-4 py-3 text-left font-semibold text-slate-600">Name</th>
                 <th className="px-4 py-3 text-left font-semibold text-slate-600">Email</th>
                 <th className="px-4 py-3 text-left font-semibold text-slate-600">Subject</th>
-                <th className="px-4 py-3 text-left font-semibold text-slate-600">Class</th>
+                <th className="px-4 py-3 text-left font-semibold text-slate-600">Class Teacher</th>
                 <th className="px-4 py-3 text-left font-semibold text-slate-600">Status</th>
                 <th className="px-4 py-3 text-right font-semibold text-slate-600">Actions</th>
               </tr>
@@ -182,12 +237,12 @@ export default function Teachers() {
       {showModal && (
         <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
           <div className="fixed inset-0 bg-black/30 backdrop-blur-sm" onClick={() => setShowModal(false)} />
-          <motion.div initial={{ opacity: 0, scale: 0.95 }} animate={{ opacity: 1, scale: 1 }} className="relative w-full max-w-lg rounded-2xl bg-white p-6 shadow-2xl">
-            <div className="mb-6 flex items-center justify-between">
+          <motion.div initial={{ opacity: 0, scale: 0.95 }} animate={{ opacity: 1, scale: 1 }} className="relative flex w-full max-w-lg max-h-[90vh] flex-col rounded-2xl bg-white shadow-2xl">
+            <div className="flex items-center justify-between px-6 pt-6 pb-4">
               <h2 className="text-lg font-bold text-slate-800">{editing ? 'Edit Teacher' : 'Add Teacher'}</h2>
               <button onClick={() => setShowModal(false)} className="cursor-pointer rounded-lg p-1.5 text-slate-400 hover:bg-slate-100"><HiOutlineX className="h-5 w-5" /></button>
             </div>
-            <form onSubmit={handleSubmit} className="space-y-4">
+            <form onSubmit={handleSubmit} className="flex-1 space-y-4 overflow-y-auto px-6 pb-6">
               <div className="grid grid-cols-2 gap-4">
                 <div><label className="mb-1 block text-sm font-medium text-slate-700">First Name</label><input required value={form.first_name} onChange={(e) => setForm({ ...form, first_name: e.target.value })} className="w-full rounded-lg border border-slate-200 px-3 py-2.5 text-sm focus:outline-none focus:border-primary-500 focus:ring-2 focus:ring-primary-500/20" /></div>
                 <div><label className="mb-1 block text-sm font-medium text-slate-700">Last Name</label><input required value={form.last_name} onChange={(e) => setForm({ ...form, last_name: e.target.value })} className="w-full rounded-lg border border-slate-200 px-3 py-2.5 text-sm focus:outline-none focus:border-primary-500 focus:ring-2 focus:ring-primary-500/20" /></div>
@@ -243,11 +298,57 @@ export default function Teachers() {
                 </div>
                 <div><label className="mb-1 block text-sm font-medium text-slate-700">Qualification</label><input value={form.qualification} onChange={(e) => setForm({ ...form, qualification: e.target.value })} className="w-full rounded-lg border border-slate-200 px-3 py-2.5 text-sm focus:outline-none focus:border-primary-500 focus:ring-2 focus:ring-primary-500/20" /></div>
               </div>
+              <div>
+                <label className="mb-1 block text-sm font-medium text-slate-700">Teaching Classes <span className="text-xs text-slate-400">(classes this teacher teaches)</span></label>
+                <div className="relative">
+                  <div className="flex w-full flex-wrap items-center gap-1 rounded-lg border border-slate-200 px-2 py-1.5 text-sm focus-within:border-primary-500 focus-within:ring-2 focus-within:ring-primary-500/20 min-h-[38px] cursor-text" onClick={() => document.getElementById('teacherClassInput')?.focus()}>
+                    {form.class_ids.map((cid) => {
+                      const c = classes.find((cl) => cl.id === cid)
+                      if (!c) return null
+                      return (
+                        <span key={cid} className="inline-flex items-center gap-1 rounded-md bg-gradient-to-r from-emerald-500 to-teal-500 px-2 py-0.5 text-xs font-medium text-white shadow-sm">
+                          {c.name}{c.section ? ` (${c.section})` : ''}
+                          <button type="button" onClick={(e) => { e.stopPropagation(); setForm({ ...form, class_ids: form.class_ids.filter((x) => x !== cid) }) }} className="cursor-pointer hover:text-red-200 transition-colors"><HiOutlineX className="h-3 w-3" /></button>
+                        </span>
+                      )
+                    })}
+                    <input
+                      id="teacherClassInput"
+                      value={classSearch}
+                      onChange={(e) => { setClassSearch(e.target.value); setShowClassSuggestions(true) }}
+                      onFocus={() => setShowClassSuggestions(true)}
+                      onBlur={() => setTimeout(() => setShowClassSuggestions(false), 150)}
+                      placeholder={form.class_ids.length ? '' : 'Search classes to assign...'}
+                      className="min-w-[80px] flex-1 border-0 bg-transparent px-0 py-0.5 text-sm focus:outline-none"
+                    />
+                  </div>
+                  {showClassSuggestions && (
+                    <div className="absolute left-0 right-0 top-full mt-1 z-10 max-h-40 overflow-y-auto rounded-lg border border-slate-200 bg-white shadow-lg">
+                      {classes
+                        .filter((c) => !form.class_ids.includes(c.id) && `${c.name} ${c.section || ''}`.toLowerCase().includes(classSearch.toLowerCase()))
+                        .slice(0, 8)
+                        .map((c) => (
+                          <button
+                            key={c.id}
+                            type="button"
+                            onMouseDown={(e) => { e.preventDefault(); setForm({ ...form, class_ids: [...form.class_ids, c.id] }); setClassSearch('') }}
+                            className="w-full cursor-pointer px-3 py-2 text-left text-sm text-slate-700 hover:bg-primary-50 hover:text-primary-700 transition-colors"
+                          >
+                            {c.name}{c.section ? ` (${c.section})` : ''}
+                          </button>
+                        ))}
+                      {classes.filter((c) => !form.class_ids.includes(c.id) && `${c.name} ${c.section || ''}`.toLowerCase().includes(classSearch.toLowerCase())).length === 0 && (
+                        <div className="px-3 py-2 text-sm text-slate-400">No matching classes</div>
+                      )}
+                    </div>
+                  )}
+                </div>
+              </div>
               <div className="grid grid-cols-2 gap-4">
                 <div><label className="mb-1 block text-sm font-medium text-slate-700">Gender</label><select value={form.gender} onChange={(e) => setForm({ ...form, gender: e.target.value })} className="w-full rounded-lg border border-slate-200 px-3 py-2.5 text-sm focus:outline-none focus:border-primary-500 focus:ring-2 focus:ring-primary-500/20">
                   <option value="">Select</option><option value="male">Male</option><option value="female">Female</option>
                 </select></div>
-                <div><label className="mb-1 block text-sm font-medium text-slate-700">Class <span className="text-xs text-slate-400">(class teacher)</span></label><select value={form.class_id} onChange={(e) => setForm({ ...form, class_id: e.target.value })} className="w-full rounded-lg border border-slate-200 px-3 py-2.5 text-sm focus:outline-none focus:border-primary-500 focus:ring-2 focus:ring-primary-500/20">
+                <div><label className="mb-1 block text-sm font-medium text-slate-700">Class Teacher <span className="text-xs text-slate-400">(takes attendance)</span></label><select value={form.class_id} onChange={(e) => setForm({ ...form, class_id: e.target.value })} className="w-full rounded-lg border border-slate-200 px-3 py-2.5 text-sm focus:outline-none focus:border-primary-500 focus:ring-2 focus:ring-primary-500/20">
                   <option value="">Not assigned</option>
                   {classes.map((c) => {
                     const assignedToAnother = !!c.teachers?.[0] && c.teachers[0].id !== editing?.id
@@ -275,12 +376,12 @@ export default function Teachers() {
       {showViewModal && viewing && (
         <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
           <div className="fixed inset-0 bg-black/30 backdrop-blur-sm" onClick={() => setShowViewModal(false)} />
-          <motion.div initial={{ opacity: 0, scale: 0.95 }} animate={{ opacity: 1, scale: 1 }} className="relative w-full max-w-lg rounded-2xl bg-white p-6 shadow-2xl">
-            <div className="mb-6 flex items-center justify-between">
+          <motion.div initial={{ opacity: 0, scale: 0.95 }} animate={{ opacity: 1, scale: 1 }} className="relative flex w-full max-w-lg max-h-[90vh] flex-col rounded-2xl bg-white shadow-2xl">
+            <div className="flex items-center justify-between px-6 pt-6 pb-4">
               <h2 className="text-lg font-bold text-slate-800">Teacher Details</h2>
               <button onClick={() => setShowViewModal(false)} className="cursor-pointer rounded-lg p-1.5 text-slate-400 hover:bg-slate-100"><HiOutlineX className="h-5 w-5" /></button>
             </div>
-            <div className="space-y-4">
+            <div className="flex-1 space-y-4 overflow-y-auto px-6 pb-6">
               <div className="flex items-center gap-4 pb-4 border-b border-slate-100">
                 <div className="flex h-14 w-14 items-center justify-center rounded-full bg-gradient-to-br from-emerald-400 to-teal-500 text-lg font-bold text-white">{viewing.first_name[0]}{viewing.last_name[0]}</div>
                 <div>
@@ -295,6 +396,20 @@ export default function Teachers() {
                 <div><span className="block text-slate-400">Gender</span><span className="text-slate-700 capitalize">{viewing.gender || '—'}</span></div>
                 <div><span className="block text-slate-400">Class Teacher</span><span className="text-slate-700">{viewing.class ? `${viewing.class.name}${viewing.class.section ? ` (${viewing.class.section})` : ''}` : 'Not assigned'}</span></div>
                 <div><span className="block text-slate-400">Status</span><span className={`inline-block rounded-full px-2.5 py-0.5 text-xs font-medium capitalize ${statusColors[viewing.status] || 'bg-slate-100 text-slate-600'}`}>{viewing.status}</span></div>
+              </div>
+              <div>
+                <span className="block text-sm text-slate-400 mb-1">Teaching Classes</span>
+                {viewing.classes && viewing.classes.length > 0 ? (
+                  <div className="flex flex-wrap gap-1.5">
+                    {viewing.classes.map((c) => (
+                      <span key={c.id} className="inline-block rounded-md bg-gradient-to-r from-emerald-500 to-teal-500 px-2.5 py-1 text-xs font-medium text-white shadow-sm">
+                        {c.name}{c.section ? ` (${c.section})` : ''}
+                      </span>
+                    ))}
+                  </div>
+                ) : (
+                  <span className="text-sm text-slate-700">None assigned</span>
+                )}
               </div>
               <div className="pt-4 flex justify-end">
                 <button onClick={() => setShowViewModal(false)} className="cursor-pointer rounded-lg border border-slate-200 px-4 py-2 text-sm font-medium text-slate-600 hover:bg-slate-50">Close</button>

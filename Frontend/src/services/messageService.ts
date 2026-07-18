@@ -11,4 +11,6 @@ export const messageService = {
     api.post<ApiResponse<Message>>('/messages/send', data),
   markRead: (id: string) =>
     api.put<ApiResponse<Message>>(`/messages/${id}/read`),
+  delete: (id: string) =>
+    api.delete<ApiResponse<null>>(`/messages/${id}`),
 }

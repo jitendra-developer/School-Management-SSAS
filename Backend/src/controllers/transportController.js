@@ -36,3 +36,8 @@ export const removeAssignment = asyncHandler(async (req, res) => {
   await transportService.removeAssignment(req.params.id, req.admin.school_id)
   return successResponse(res, { message: 'Assignment removed' })
 })
+
+export const updateAssignment = asyncHandler(async (req, res) => {
+  const data = await transportService.updateAssignment(req.params.id, req.body, req.admin.school_id)
+  return successResponse(res, { message: 'Assignment updated', data })
+})

@@ -11,7 +11,7 @@ const sanitize = (teacher) => {
 
 export const teacherService = {
   async create(data, school_id) {
-    const { password, ...rest } = data
+    const { password, class_ids, ...rest } = data
     const teacher = await prisma.teacher.create({
       data: {
         ...rest,
@@ -19,8 +19,14 @@ export const teacherService = {
         password: password ? await bcrypt.hash(password, SALT_ROUNDS) : null,
         dob: data.dob ? new Date(data.dob) : null,
         joining_date: data.joining_date ? new Date(data.joining_date) : new Date(),
+        classes: Array.isArray(class_ids) && class_ids.length > 0
+          ? { connect: class_ids.map((id) => ({ id })) }
+          : undefined,
       },
-      include: { class: { select: { id: true, name: true, section: true } } },
+      include: {
+        class: { select: { id: true, name: true, section: true } },
+        classes: { select: { id: true, name: true, section: true } },
+      },
     })
     return sanitize(teacher)
   },
@@ -46,7 +52,10 @@ export const teacherService = {
         where,
         skip,
         take: parseInt(limit),
-        include: { class: { select: { id: true, name: true, section: true } } },
+        include: {
+          class: { select: { id: true, name: true, section: true } },
+          classes: { select: { id: true, name: true, section: true } },
+        },
         orderBy: { created_at: 'desc' },
       }),
       prisma.teacher.count({ where }),
@@ -60,6 +69,7 @@ export const teacherService = {
       where: { id, school_id },
       include: {
         class: { select: { id: true, name: true, section: true } },
+        classes: { select: { id: true, name: true, section: true } },
       },
     })
     if (!teacher) {
@@ -84,15 +94,21 @@ export const teacherService = {
 
   async update(id, data, school_id) {
     await this.getByIdWithPassword(id, school_id)
-    const { password, ...rest } = data
+    const { password, class_ids, ...rest } = data
     const teacher = await prisma.teacher.update({
       where: { id },
       data: {
         ...rest,
         ...(password ? { password: await bcrypt.hash(password, SALT_ROUNDS) } : {}),
         dob: data.dob ? new Date(data.dob) : undefined,
+        classes: Array.isArray(class_ids)
+          ? { set: class_ids.map((cid) => ({ id: cid })) }
+          : undefined,
       },
-      include: { class: { select: { id: true, name: true, section: true } } },
+      include: {
+        class: { select: { id: true, name: true, section: true } },
+        classes: { select: { id: true, name: true, section: true } },
+      },
     })
     return sanitize(teacher)
   },

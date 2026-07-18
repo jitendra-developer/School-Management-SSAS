@@ -23,6 +23,8 @@ export const hostelService = {
     api.get<ApiResponse<{ assignments: RoomAssignment[]; total: number }>>('/hostel/assignments/all', { params }),
   assignStudent: (data: Record<string, unknown>) =>
     api.post<ApiResponse<RoomAssignment>>('/hostel/assign', data),
+  updateAssignment: (id: string, data: Record<string, unknown>) =>
+    api.put<ApiResponse<RoomAssignment>>(`/hostel/assignments/${id}`, data),
   removeAssignment: (id: string) =>
     api.delete<ApiResponse<null>>(`/hostel/assignments/${id}`),
 }

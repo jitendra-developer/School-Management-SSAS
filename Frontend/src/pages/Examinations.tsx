@@ -1,10 +1,14 @@
 import { useEffect, useState } from 'react'
 import { motion } from 'framer-motion'
-import { HiOutlineSearch, HiOutlinePlus, HiOutlinePencil, HiOutlineTrash, HiOutlineX, HiOutlineChevronDown, HiOutlineChevronRight } from 'react-icons/hi'
+import { HiOutlineSearch, HiOutlinePlus, HiOutlinePencil, HiOutlineTrash, HiOutlineX, HiOutlineChevronDown, HiOutlineChevronRight, HiOutlineEye } from 'react-icons/hi'
 import Skeleton from '@/components/ui/Skeleton'
 import toast from 'react-hot-toast'
 import { examService } from '@/services/examService'
+import { classService } from '@/services/classService'
+import { subjectService } from '@/services/subjectService'
 import type { Exam, ExamResult } from '@/types/exam'
+import type { Class } from '@/types/class'
+import type { Subject } from '@/types/subject'
 
 const typeColors: Record<string, string> = {
   midterm: 'bg-blue-100 text-blue-700',
@@ -25,8 +29,33 @@ export default function Examinations() {
   const [showResultModal, setShowResultModal] = useState<string | null>(null)
   const [resultForm, setResultForm] = useState({ student_id: '', marks_obtained: '', grade: '' })
   const [form, setForm] = useState({ title: '', subject: '', class_id: '', type: 'midterm', date: '', max_marks: '' })
+  const [showViewModal, setShowViewModal] = useState(false)
+  const [viewing, setViewing] = useState<Exam | null>(null)
+  const [viewingLoading, setViewingLoading] = useState(false)
+  const [classes, setClasses] = useState<Class[]>([])
+  const [classSubjects, setClassSubjects] = useState<Subject[]>([])
 
-  useEffect(() => { fetchExams() }, [])
+  useEffect(() => { fetchExams(); fetchClasses() }, [])
+
+  const fetchClasses = async () => {
+    try {
+      const { data } = await classService.getAll()
+      setClasses(data.data || [])
+    } catch { /* ignore */ }
+  }
+
+  const fetchSubjectsByClass = async (classId: string) => {
+    if (!classId) { setClassSubjects([]); return }
+    try {
+      const { data } = await subjectService.getByClass(classId)
+      setClassSubjects(data.data || [])
+    } catch { setClassSubjects([]) }
+  }
+
+  const handleClassChange = (classId: string) => {
+    setForm({ ...form, class_id: classId, subject: '' })
+    fetchSubjectsByClass(classId)
+  }
 
   const fetchExams = async () => {
     try {
@@ -64,6 +93,7 @@ export default function Examinations() {
   const handleEdit = (e: Exam) => {
     setEditing(e)
     setForm({ title: e.title, subject: e.subject, class_id: e.class_id, type: e.type, date: e.date?.split('T')[0] || '', max_marks: String(e.max_marks) })
+    fetchSubjectsByClass(e.class_id)
     setShowModal(true)
   }
 
@@ -71,6 +101,17 @@ export default function Examinations() {
     if (!confirm('Delete this exam?')) return
     try { await examService.delete(id); toast.success('Exam deleted'); fetchExams() }
     catch { toast.error('Delete failed') }
+  }
+
+  const handleView = async (id: string) => {
+    setShowViewModal(true)
+    setViewing(null)
+    setViewingLoading(true)
+    try {
+      const { data } = await examService.getById(id)
+      setViewing(data.data || null)
+    } catch { toast.error('Failed to load exam') }
+    finally { setViewingLoading(false) }
   }
 
   const handleAddResult = async (e: React.FormEvent) => {
@@ -102,7 +143,7 @@ export default function Examinations() {
           <h1 className="text-2xl font-bold text-slate-800">Examinations</h1>
           <p className="mt-1 text-sm text-slate-500">Manage exams and results</p>
         </div>
-        <button onClick={() => { setEditing(null); setForm({ title: '', subject: '', class_id: '', type: 'midterm', date: '', max_marks: '' }); setShowModal(true) }} className="inline-flex cursor-pointer items-center gap-2 rounded-xl bg-gradient-to-r from-blue-600 to-indigo-600 px-5 py-2.5 text-sm font-semibold text-white shadow-lg shadow-blue-600/25 transition-all hover:shadow-xl hover:scale-[1.02]">
+        <button onClick={() => { setEditing(null); setForm({ title: '', subject: '', class_id: '', type: 'midterm', date: '', max_marks: '' }); setClassSubjects([]); setShowModal(true) }} className="inline-flex cursor-pointer items-center gap-2 rounded-xl bg-gradient-to-r from-blue-600 to-indigo-600 px-5 py-2.5 text-sm font-semibold text-white shadow-lg shadow-blue-600/25 transition-all hover:shadow-xl hover:scale-[1.02]">
           <HiOutlinePlus className="h-4 w-4" /> Add Exam
         </button>
       </motion.div>
@@ -158,6 +199,7 @@ export default function Examinations() {
                   <td className="px-4 py-3 font-medium text-slate-800">{e.max_marks}</td>
                   <td className="px-4 py-3 text-right">
                     <button onClick={() => { setShowResultModal(e.id); setResultForm({ student_id: '', marks_obtained: '', grade: '' }) }} className="cursor-pointer rounded-lg px-2.5 py-1.5 text-xs font-medium text-blue-600 hover:bg-blue-50 transition-colors mr-1">Results</button>
+                    <button onClick={() => handleView(e.id)} className="cursor-pointer rounded-lg p-1.5 text-slate-400 hover:bg-slate-100 hover:text-slate-600"><HiOutlineEye className="h-4 w-4" /></button>
                     <button onClick={() => handleEdit(e)} className="cursor-pointer rounded-lg p-1.5 text-slate-400 hover:bg-primary-50 hover:text-primary-600"><HiOutlinePencil className="h-4 w-4" /></button>
                     <button onClick={() => handleDelete(e.id)} className="cursor-pointer rounded-lg p-1.5 text-slate-400 hover:bg-red-50 hover:text-red-500"><HiOutlineTrash className="h-4 w-4" /></button>
                   </td>
@@ -199,20 +241,26 @@ export default function Examinations() {
       {showModal && (
         <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
           <div className="fixed inset-0 bg-black/30 backdrop-blur-sm" onClick={() => setShowModal(false)} />
-          <motion.div initial={{ opacity: 0, scale: 0.95 }} animate={{ opacity: 1, scale: 1 }} className="relative w-full max-w-lg rounded-2xl bg-white p-6 shadow-2xl">
-            <div className="mb-6 flex items-center justify-between">
+          <motion.div initial={{ opacity: 0, scale: 0.95 }} animate={{ opacity: 1, scale: 1 }} className="relative flex w-full max-w-lg max-h-[90vh] flex-col rounded-2xl bg-white shadow-2xl">
+            <div className="flex items-center justify-between px-6 pt-6 pb-4">
               <h2 className="text-lg font-bold text-slate-800">{editing ? 'Edit Exam' : 'Add Exam'}</h2>
               <button onClick={() => setShowModal(false)} className="cursor-pointer rounded-lg p-1.5 text-slate-400 hover:bg-slate-100"><HiOutlineX className="h-5 w-5" /></button>
             </div>
-            <form onSubmit={handleSubmit} className="space-y-4">
+            <form onSubmit={handleSubmit} className="flex-1 space-y-4 overflow-y-auto px-6 pb-6">
               <div className="grid grid-cols-2 gap-4">
                 <div><label className="mb-1 block text-sm font-medium text-slate-700">Title</label><input required value={form.title} onChange={(e) => setForm({ ...form, title: e.target.value })} className="w-full rounded-lg border border-slate-200 px-3 py-2.5 text-sm focus:outline-none focus:border-primary-500 focus:ring-2 focus:ring-primary-500/20" /></div>
-                <div><label className="mb-1 block text-sm font-medium text-slate-700">Subject</label><input required value={form.subject} onChange={(e) => setForm({ ...form, subject: e.target.value })} className="w-full rounded-lg border border-slate-200 px-3 py-2.5 text-sm focus:outline-none focus:border-primary-500 focus:ring-2 focus:ring-primary-500/20" /></div>
-              </div>
-              <div className="grid grid-cols-2 gap-4">
-                <div><label className="mb-1 block text-sm font-medium text-slate-700">Class ID</label><input required value={form.class_id} onChange={(e) => setForm({ ...form, class_id: e.target.value })} placeholder="Enter class ID" className="w-full rounded-lg border border-slate-200 px-3 py-2.5 text-sm focus:outline-none focus:border-primary-500 focus:ring-2 focus:ring-primary-500/20" /></div>
                 <div><label className="mb-1 block text-sm font-medium text-slate-700">Type</label><select required value={form.type} onChange={(e) => setForm({ ...form, type: e.target.value })} className="w-full rounded-lg border border-slate-200 px-3 py-2.5 text-sm focus:outline-none focus:border-primary-500 focus:ring-2 focus:ring-primary-500/20">
                   <option value="midterm">Midterm</option><option value="final">Final</option><option value="quiz">Quiz</option>
+                </select></div>
+              </div>
+              <div className="grid grid-cols-2 gap-4">
+                <div><label className="mb-1 block text-sm font-medium text-slate-700">Class</label><select required value={form.class_id} onChange={(e) => handleClassChange(e.target.value)} className="w-full rounded-lg border border-slate-200 px-3 py-2.5 text-sm focus:outline-none focus:border-primary-500 focus:ring-2 focus:ring-primary-500/20">
+                  <option value="">Select Class</option>
+                  {classes.map((c) => <option key={c.id} value={c.id}>{c.name}{c.section ? ` (${c.section})` : ''}</option>)}
+                </select></div>
+                <div><label className="mb-1 block text-sm font-medium text-slate-700">Subject</label><select required disabled={!form.class_id} value={form.subject} onChange={(e) => setForm({ ...form, subject: e.target.value })} className="w-full rounded-lg border border-slate-200 px-3 py-2.5 text-sm focus:outline-none focus:border-primary-500 focus:ring-2 focus:ring-primary-500/20 disabled:bg-slate-50 disabled:text-slate-400">
+                  <option value="">{form.class_id ? 'Select Subject' : 'Select a class first'}</option>
+                  {classSubjects.map((s) => <option key={s.id} value={s.name}>{s.name}</option>)}
                 </select></div>
               </div>
               <div className="grid grid-cols-2 gap-4">
@@ -231,12 +279,12 @@ export default function Examinations() {
       {showResultModal && (
         <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
           <div className="fixed inset-0 bg-black/30 backdrop-blur-sm" onClick={() => setShowResultModal(null)} />
-          <motion.div initial={{ opacity: 0, scale: 0.95 }} animate={{ opacity: 1, scale: 1 }} className="relative w-full max-w-md rounded-2xl bg-white p-6 shadow-2xl">
-            <div className="mb-6 flex items-center justify-between">
+          <motion.div initial={{ opacity: 0, scale: 0.95 }} animate={{ opacity: 1, scale: 1 }} className="relative flex w-full max-w-md max-h-[90vh] flex-col rounded-2xl bg-white shadow-2xl">
+            <div className="flex items-center justify-between px-6 pt-6 pb-4">
               <h2 className="text-lg font-bold text-slate-800">Record Result</h2>
               <button onClick={() => setShowResultModal(null)} className="cursor-pointer rounded-lg p-1.5 text-slate-400 hover:bg-slate-100"><HiOutlineX className="h-5 w-5" /></button>
             </div>
-            <form onSubmit={handleAddResult} className="space-y-4">
+            <form onSubmit={handleAddResult} className="flex-1 space-y-4 overflow-y-auto px-6 pb-6">
               <div><label className="mb-1 block text-sm font-medium text-slate-700">Student ID</label><input required value={resultForm.student_id} onChange={(e) => setResultForm({ ...resultForm, student_id: e.target.value })} placeholder="Enter student ID" className="w-full rounded-lg border border-slate-200 px-3 py-2.5 text-sm focus:outline-none focus:border-primary-500 focus:ring-2 focus:ring-primary-500/20" /></div>
               <div className="grid grid-cols-2 gap-4">
                 <div><label className="mb-1 block text-sm font-medium text-slate-700">Marks Obtained</label><input required type="number" value={resultForm.marks_obtained} onChange={(e) => setResultForm({ ...resultForm, marks_obtained: e.target.value })} className="w-full rounded-lg border border-slate-200 px-3 py-2.5 text-sm focus:outline-none focus:border-primary-500 focus:ring-2 focus:ring-primary-500/20" /></div>
@@ -247,6 +295,68 @@ export default function Examinations() {
                 <button type="submit" disabled={resultSubmitting} className="cursor-pointer rounded-lg bg-gradient-to-r from-blue-600 to-indigo-600 px-6 py-2.5 text-sm font-semibold text-white shadow-lg disabled:opacity-60">{resultSubmitting ? 'Saving...' : 'Add Result'}</button>
               </div>
             </form>
+          </motion.div>
+        </div>
+      )}
+
+      {showViewModal && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
+          <div className="fixed inset-0 bg-black/30 backdrop-blur-sm" onClick={() => setShowViewModal(false)} />
+          <motion.div initial={{ opacity: 0, scale: 0.95 }} animate={{ opacity: 1, scale: 1 }} className="relative flex w-full max-w-lg max-h-[90vh] flex-col rounded-2xl bg-white shadow-2xl">
+            <div className="flex items-center justify-between px-6 pt-6 pb-4">
+              <h2 className="text-lg font-bold text-slate-800">Exam Details</h2>
+              <button onClick={() => setShowViewModal(false)} className="cursor-pointer rounded-lg p-1.5 text-slate-400 hover:bg-slate-100"><HiOutlineX className="h-5 w-5" /></button>
+            </div>
+            <div className="flex-1 space-y-4 overflow-y-auto px-6 pb-6">
+              {viewingLoading || !viewing ? (
+                <div className="space-y-3">
+                  <Skeleton className="h-4 w-full rounded" />
+                  <Skeleton className="h-4 w-full rounded" />
+                  <Skeleton className="h-4 w-3/4 rounded" />
+                </div>
+              ) : (
+                <>
+                  <div className="grid grid-cols-2 gap-4 text-sm">
+                    <div><p className="text-slate-400">Title</p><p className="font-medium text-slate-700">{viewing.title}</p></div>
+                    <div><p className="text-slate-400">Subject</p><p className="font-medium text-slate-700">{viewing.subject}</p></div>
+                    <div><p className="text-slate-400">Class</p><p className="font-medium text-slate-700">{viewing.class?.name || '—'}{viewing.class?.section ? ` (${viewing.class.section})` : ''}</p></div>
+                    <div><p className="text-slate-400">Type</p><p className="font-medium capitalize text-slate-700">{viewing.type}</p></div>
+                    <div><p className="text-slate-400">Date</p><p className="font-medium text-slate-700">{new Date(viewing.date).toLocaleDateString()}</p></div>
+                    <div><p className="text-slate-400">Max Marks</p><p className="font-medium text-slate-700">{viewing.max_marks}</p></div>
+                  </div>
+                  <div>
+                    <p className="mb-2 text-sm font-medium text-slate-700">Results</p>
+                    {!viewing.results || viewing.results.length === 0 ? (
+                      <p className="text-sm text-slate-400">No results recorded</p>
+                    ) : (
+                      <div className="rounded-lg border border-slate-200 overflow-hidden">
+                        <table className="w-full text-xs">
+                          <thead>
+                            <tr className="border-b border-slate-100 bg-slate-50">
+                              <th className="px-3 py-2 text-left font-semibold text-slate-600">Student</th>
+                              <th className="px-3 py-2 text-left font-semibold text-slate-600">Marks</th>
+                              <th className="px-3 py-2 text-left font-semibold text-slate-600">Grade</th>
+                            </tr>
+                          </thead>
+                          <tbody>
+                            {viewing.results.map((r) => (
+                              <tr key={r.id} className="border-b border-slate-50 last:border-0">
+                                <td className="px-3 py-2 text-slate-700">{r.student?.first_name} {r.student?.last_name}</td>
+                                <td className="px-3 py-2 text-slate-700">{r.marks_obtained}/{viewing.max_marks}</td>
+                                <td className="px-3 py-2"><span className="rounded-full bg-indigo-100 px-2 py-0.5 text-xs font-medium text-indigo-700">{r.grade || '—'}</span></td>
+                              </tr>
+                            ))}
+                          </tbody>
+                        </table>
+                      </div>
+                    )}
+                  </div>
+                </>
+              )}
+            </div>
+            <div className="flex justify-end px-6 pt-2 pb-6">
+              <button onClick={() => setShowViewModal(false)} className="cursor-pointer rounded-lg border border-slate-200 px-4 py-2.5 text-sm font-medium text-slate-600 hover:bg-slate-50">Close</button>
+            </div>
           </motion.div>
         </div>
       )}

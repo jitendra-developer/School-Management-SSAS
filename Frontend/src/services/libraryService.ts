@@ -17,4 +17,8 @@ export const libraryService = {
     api.post<ApiResponse<BookIssue>>('/library/issue', data),
   returnBook: (id: string) =>
     api.post<ApiResponse<BookIssue>>(`/library/return/${id}`),
+  updateIssue: (id: string, data: Record<string, unknown>) =>
+    api.put<ApiResponse<BookIssue>>(`/library/issues/${id}`, data),
+  deleteIssue: (id: string) =>
+    api.delete<ApiResponse<null>>(`/library/issues/${id}`),
 }

@@ -137,4 +137,38 @@ export const libraryService = {
     ])
     return updated
   },
+
+  async updateIssue(id, { due_date }, school_id) {
+    const issue = await prisma.bookIssue.findFirst({ where: { id, school_id } })
+    if (!issue) {
+      const err = new Error('Issue not found')
+      err.statusCode = 404
+      throw err
+    }
+    const updated = await prisma.bookIssue.update({
+      where: { id },
+      data: { due_date: new Date(due_date) },
+      include: {
+        book: { select: { id: true, title: true } },
+        student: { select: { id: true, first_name: true, last_name: true } },
+      },
+    })
+    return updated
+  },
+
+  async deleteIssue(id, school_id) {
+    const issue = await prisma.bookIssue.findFirst({ where: { id, school_id } })
+    if (!issue) {
+      const err = new Error('Issue not found')
+      err.statusCode = 404
+      throw err
+    }
+    if (issue.status !== 'returned') {
+      await prisma.book.update({
+        where: { id: issue.book_id },
+        data: { available: { increment: 1 } },
+      })
+    }
+    await prisma.bookIssue.delete({ where: { id } })
+  },
 }

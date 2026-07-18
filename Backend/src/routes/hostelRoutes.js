@@ -11,6 +11,7 @@ import {
   getAssignments,
   assignStudent,
   removeAssignment,
+  updateAssignment,
 } from '../controllers/hostelController.js'
 import { protect } from '../middleware/auth.js'
 
@@ -26,6 +27,7 @@ router.put('/rooms/:id', updateRoom)
 router.delete('/rooms/:id', deleteRoom)
 router.get('/assignments/all', getAssignments)
 router.post('/assign', assignStudent)
+router.put('/assignments/:id', updateAssignment)
 router.delete('/assignments/:id', removeAssignment)
 
 export default router
