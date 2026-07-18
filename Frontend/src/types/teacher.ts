@@ -16,6 +16,7 @@ export interface Teacher {
   status: string
   created_at: string
   class?: { id: string; name: string; section?: string }
+  classes?: { id: string; name: string; section?: string }[]
 }
 
 export interface TeacherForm {
@@ -26,6 +27,7 @@ export interface TeacherForm {
   subject?: string
   qualification?: string
   class_id?: string
+  class_ids?: string[]
   gender?: string
   password?: string
 }

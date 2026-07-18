@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react'
+import { useEffect, useState, useRef } from 'react'
 import { motion } from 'framer-motion'
 import { HiOutlineClipboardCheck, HiOutlineCalendar, HiOutlineUserGroup, HiOutlineAcademicCap, HiOutlineClock, HiOutlineCheckCircle, HiOutlineXCircle } from 'react-icons/hi'
 import Skeleton from '@/components/ui/Skeleton'
@@ -27,6 +27,9 @@ export default function Attendance() {
   const [historyRecords, setHistoryRecords] = useState<Array<{ date: string; status: string }>>([])
   const [historyLoading, setHistoryLoading] = useState(false)
 
+  const rosterFetchIdRef = useRef(0)
+  const attendanceFetchIdRef = useRef(0)
+
   useEffect(() => {
     if (tab === 'student') fetchStudents()
     else fetchTeachers()
@@ -37,31 +40,47 @@ export default function Attendance() {
   }, [date, tab])
 
   const fetchStudents = async () => {
+    const requestId = ++rosterFetchIdRef.current
+    setFetching(true)
     try {
       const { data } = await studentService.getAll({ limit: '100', status: 'active' })
+      if (requestId !== rosterFetchIdRef.current) return
       setStudents(data.data?.students || [])
-    } catch { toast.error('Failed to load students') }
-    finally { setFetching(false) }
+    } catch {
+      if (requestId === rosterFetchIdRef.current) toast.error('Failed to load students')
+    } finally {
+      if (requestId === rosterFetchIdRef.current) setFetching(false)
+    }
   }
 
   const fetchTeachers = async () => {
+    const requestId = ++rosterFetchIdRef.current
+    setFetching(true)
     try {
       const { data } = await teacherService.getAll({ limit: '50', status: 'active' })
+      if (requestId !== rosterFetchIdRef.current) return
       setTeachers(data.data?.teachers || [])
-    } catch { toast.error('Failed to load teachers') }
-    finally { setFetching(false) }
+    } catch {
+      if (requestId === rosterFetchIdRef.current) toast.error('Failed to load teachers')
+    } finally {
+      if (requestId === rosterFetchIdRef.current) setFetching(false)
+    }
   }
 
   const fetchAttendance = async () => {
+    const requestId = ++attendanceFetchIdRef.current
     try {
       const { data } = await attendanceService.getByDate(date, { type: tab })
+      if (requestId !== attendanceFetchIdRef.current) return
       const records = (data.data as Record<string, unknown>)?.student_attendance || (data.data as Record<string, unknown>)?.teacher_attendance || []
       const map: Record<string, string> = {}
       for (const r of records as Array<{ student_id?: string; teacher_id?: string; status: string }>) {
         map[r.student_id || r.teacher_id || ''] = r.status
       }
       setAttendance(map)
-    } catch { setAttendance({}) }
+    } catch {
+      if (requestId === attendanceFetchIdRef.current) setAttendance({})
+    }
   }
 
   const handleSubmit = async () => {

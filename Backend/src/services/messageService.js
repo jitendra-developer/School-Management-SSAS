@@ -68,4 +68,14 @@ export const messageService = {
     })
     return updated
   },
+
+  async deleteMessage(id, school_id) {
+    const message = await prisma.message.findFirst({ where: { id, school_id } })
+    if (!message) {
+      const err = new Error('Message not found')
+      err.statusCode = 404
+      throw err
+    }
+    await prisma.message.delete({ where: { id } })
+  },
 }

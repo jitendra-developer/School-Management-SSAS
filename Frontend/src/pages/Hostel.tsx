@@ -1,6 +1,6 @@
-import { useEffect, useState } from 'react'
+import { useEffect, useState, useRef } from 'react'
 import { motion } from 'framer-motion'
-import { HiOutlineSearch, HiOutlinePlus, HiOutlinePencil, HiOutlineTrash, HiOutlineX, HiOutlineHome, HiOutlineKey, HiOutlineUserGroup, HiOutlineLogout } from 'react-icons/hi'
+import { HiOutlineSearch, HiOutlinePlus, HiOutlinePencil, HiOutlineTrash, HiOutlineX, HiOutlineHome, HiOutlineKey, HiOutlineUserGroup, HiOutlineLogout, HiOutlineEye } from 'react-icons/hi'
 import Skeleton from '@/components/ui/Skeleton'
 import toast from 'react-hot-toast'
 import { hostelService } from '@/services/hostelService'
@@ -28,6 +28,15 @@ export default function Hostel() {
   const [showAssignModal, setShowAssignModal] = useState(false)
   const [assignForm, setAssignForm] = useState({ room_id: '', student_id: '' })
 
+  const [viewingHostel, setViewingHostel] = useState<Hostel | null>(null)
+  const [viewingRoom, setViewingRoom] = useState<Room | null>(null)
+  const [viewingAssignment, setViewingAssignment] = useState<RoomAssignment | null>(null)
+  const [editingAssignment, setEditingAssignment] = useState<RoomAssignment | null>(null)
+  const [editAssignForm, setEditAssignForm] = useState({ check_in_date: '', check_out_date: '' })
+  const [editAssignSubmitting, setEditAssignSubmitting] = useState(false)
+
+  const fetchIdRef = useRef(0)
+
   useEffect(() => {
     if (tab === 'hostels') fetchHostels()
     else if (tab === 'rooms') fetchRooms()
@@ -35,36 +44,52 @@ export default function Hostel() {
   }, [tab])
 
   const fetchHostels = async () => {
+    const requestId = ++fetchIdRef.current
     setLoading(true)
     try {
       const { data } = await hostelService.getHostels({ limit: '50' })
+      if (requestId !== fetchIdRef.current) return
       setHostels(data.data?.hostels || [])
-    } catch { toast.error('Failed to load hostels') }
-    finally { setLoading(false) }
+    } catch {
+      if (requestId === fetchIdRef.current) toast.error('Failed to load hostels')
+    } finally {
+      if (requestId === fetchIdRef.current) setLoading(false)
+    }
   }
 
   const fetchRooms = async () => {
+    const requestId = ++fetchIdRef.current
     setLoading(true)
     try {
       if (selectedHostelId) {
         const { data } = await hostelService.getRooms(selectedHostelId, { limit: '50' })
+        if (requestId !== fetchIdRef.current) return
         setRooms(data.data?.rooms || [])
       } else {
+        if (requestId !== fetchIdRef.current) return
         setRooms([])
       }
-    } catch { toast.error('Failed to load rooms') }
-    finally { setLoading(false) }
+    } catch {
+      if (requestId === fetchIdRef.current) toast.error('Failed to load rooms')
+    } finally {
+      if (requestId === fetchIdRef.current) setLoading(false)
+    }
   }
 
   useEffect(() => { if (tab === 'rooms') fetchRooms() }, [selectedHostelId])
 
   const fetchAssignments = async () => {
+    const requestId = ++fetchIdRef.current
     setLoading(true)
     try {
       const { data } = await hostelService.getAssignments({ limit: '50' })
+      if (requestId !== fetchIdRef.current) return
       setAssignments(data.data?.assignments || [])
-    } catch { toast.error('Failed to load assignments') }
-    finally { setLoading(false) }
+    } catch {
+      if (requestId === fetchIdRef.current) toast.error('Failed to load assignments')
+    } finally {
+      if (requestId === fetchIdRef.current) setLoading(false)
+    }
   }
 
   const handleHostelSubmit = async (e: React.FormEvent) => {
@@ -130,6 +155,30 @@ export default function Hostel() {
     if (!confirm('Check out this student?')) return
     try { await hostelService.removeAssignment(id); toast.success('Student checked out'); fetchAssignments() }
     catch { toast.error('Checkout failed') }
+  }
+
+  const openEditAssignment = (a: RoomAssignment) => {
+    setEditingAssignment(a)
+    setEditAssignForm({
+      check_in_date: a.check_in_date.split('T')[0],
+      check_out_date: a.check_out_date ? a.check_out_date.split('T')[0] : '',
+    })
+  }
+
+  const handleEditAssignmentSubmit = async (e: React.FormEvent) => {
+    e.preventDefault()
+    if (!editingAssignment) return
+    setEditAssignSubmitting(true)
+    try {
+      await hostelService.updateAssignment(editingAssignment.id, {
+        check_in_date: editAssignForm.check_in_date,
+        check_out_date: editAssignForm.check_out_date || null,
+      })
+      toast.success('Assignment updated')
+      setEditingAssignment(null)
+      fetchAssignments()
+    } catch { toast.error('Update failed') }
+    finally { setEditAssignSubmitting(false) }
   }
 
   const filteredHostels = hostels.filter((h) =>
@@ -240,6 +289,7 @@ export default function Hostel() {
                     <td className="px-4 py-3"><span className="rounded-full bg-rose-100 px-2.5 py-0.5 text-xs font-medium text-rose-700">{h._count?.rooms || 0}</span></td>
                     <td className="px-4 py-3 text-slate-600">{h.total_rooms}</td>
                     <td className="px-4 py-3 text-right">
+                      <button onClick={() => setViewingHostel(h)} className="cursor-pointer rounded-lg p-1.5 text-slate-400 hover:bg-slate-100 hover:text-slate-600"><HiOutlineEye className="h-4 w-4" /></button>
                       <button onClick={() => handleHostelEdit(h)} className="cursor-pointer rounded-lg p-1.5 text-slate-400 hover:bg-primary-50 hover:text-primary-600"><HiOutlinePencil className="h-4 w-4" /></button>
                       <button onClick={() => handleHostelDelete(h.id)} className="cursor-pointer rounded-lg p-1.5 text-slate-400 hover:bg-red-50 hover:text-red-500"><HiOutlineTrash className="h-4 w-4" /></button>
                     </td>
@@ -282,6 +332,7 @@ export default function Hostel() {
                     <td className="px-4 py-3 text-slate-600">{r.occupants}</td>
                     <td className="px-4 py-3"><span className={`rounded-full px-2.5 py-0.5 text-xs font-medium ${r.capacity - r.occupants > 0 ? 'bg-emerald-100 text-emerald-700' : 'bg-red-100 text-red-700'}`}>{r.capacity - r.occupants}</span></td>
                     <td className="px-4 py-3 text-right">
+                      <button onClick={() => setViewingRoom(r)} className="cursor-pointer rounded-lg p-1.5 text-slate-400 hover:bg-slate-100 hover:text-slate-600"><HiOutlineEye className="h-4 w-4" /></button>
                       <button onClick={() => handleRoomEdit(r)} className="cursor-pointer rounded-lg p-1.5 text-slate-400 hover:bg-primary-50 hover:text-primary-600"><HiOutlinePencil className="h-4 w-4" /></button>
                       <button onClick={() => handleRoomDelete(r.id)} className="cursor-pointer rounded-lg p-1.5 text-slate-400 hover:bg-red-50 hover:text-red-500"><HiOutlineTrash className="h-4 w-4" /></button>
                     </td>
@@ -334,6 +385,8 @@ export default function Hostel() {
                     <td className="px-4 py-3 text-slate-600">{new Date(a.check_in_date).toLocaleDateString()}</td>
                     <td className="px-4 py-3 text-slate-600">{a.check_out_date ? new Date(a.check_out_date).toLocaleDateString() : '—'}</td>
                     <td className="px-4 py-3 text-right">
+                      <button onClick={() => setViewingAssignment(a)} className="cursor-pointer rounded-lg p-1.5 text-slate-400 hover:bg-slate-100 hover:text-slate-600"><HiOutlineEye className="h-4 w-4" /></button>
+                      <button onClick={() => openEditAssignment(a)} className="cursor-pointer rounded-lg p-1.5 text-slate-400 hover:bg-primary-50 hover:text-primary-600"><HiOutlinePencil className="h-4 w-4" /></button>
                       {!a.check_out_date && (
                         <button onClick={() => handleCheckout(a.id)} className="cursor-pointer inline-flex items-center gap-1 rounded-lg bg-rose-50 px-2.5 py-1.5 text-xs font-medium text-rose-600 hover:bg-rose-100 transition-colors">
                           <HiOutlineLogout className="h-3.5 w-3.5" /> Check Out
@@ -351,12 +404,12 @@ export default function Hostel() {
       {showHostelModal && (
         <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
           <div className="fixed inset-0 bg-black/30 backdrop-blur-sm" onClick={() => setShowHostelModal(false)} />
-          <motion.div initial={{ opacity: 0, scale: 0.95 }} animate={{ opacity: 1, scale: 1 }} className="relative w-full max-w-lg rounded-2xl bg-white p-6 shadow-2xl">
-            <div className="mb-6 flex items-center justify-between">
+          <motion.div initial={{ opacity: 0, scale: 0.95 }} animate={{ opacity: 1, scale: 1 }} className="relative flex w-full max-w-lg max-h-[90vh] flex-col rounded-2xl bg-white shadow-2xl">
+            <div className="flex items-center justify-between px-6 pt-6 pb-4">
               <h2 className="text-lg font-bold text-slate-800">{editingHostel ? 'Edit Hostel' : 'Add Hostel'}</h2>
               <button onClick={() => setShowHostelModal(false)} className="cursor-pointer rounded-lg p-1.5 text-slate-400 hover:bg-slate-100"><HiOutlineX className="h-5 w-5" /></button>
             </div>
-            <form onSubmit={handleHostelSubmit} className="space-y-4">
+            <form onSubmit={handleHostelSubmit} className="flex-1 space-y-4 overflow-y-auto px-6 pb-6">
               <div><label className="mb-1 block text-sm font-medium text-slate-700">Name</label><input required value={hostelForm.name} onChange={(e) => setHostelForm({ ...hostelForm, name: e.target.value })} className="w-full rounded-lg border border-slate-200 px-3 py-2.5 text-sm focus:outline-none focus:border-primary-500 focus:ring-2 focus:ring-primary-500/20" /></div>
               <div className="grid grid-cols-2 gap-4">
                 <div><label className="mb-1 block text-sm font-medium text-slate-700">Warden Name</label><input value={hostelForm.warden_name} onChange={(e) => setHostelForm({ ...hostelForm, warden_name: e.target.value })} className="w-full rounded-lg border border-slate-200 px-3 py-2.5 text-sm focus:outline-none focus:border-primary-500 focus:ring-2 focus:ring-primary-500/20" /></div>
@@ -375,12 +428,12 @@ export default function Hostel() {
       {showRoomModal && (
         <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
           <div className="fixed inset-0 bg-black/30 backdrop-blur-sm" onClick={() => setShowRoomModal(false)} />
-          <motion.div initial={{ opacity: 0, scale: 0.95 }} animate={{ opacity: 1, scale: 1 }} className="relative w-full max-w-lg rounded-2xl bg-white p-6 shadow-2xl">
-            <div className="mb-6 flex items-center justify-between">
+          <motion.div initial={{ opacity: 0, scale: 0.95 }} animate={{ opacity: 1, scale: 1 }} className="relative flex w-full max-w-lg max-h-[90vh] flex-col rounded-2xl bg-white shadow-2xl">
+            <div className="flex items-center justify-between px-6 pt-6 pb-4">
               <h2 className="text-lg font-bold text-slate-800">{editingRoom ? 'Edit Room' : 'Add Room'}</h2>
               <button onClick={() => setShowRoomModal(false)} className="cursor-pointer rounded-lg p-1.5 text-slate-400 hover:bg-slate-100"><HiOutlineX className="h-5 w-5" /></button>
             </div>
-            <form onSubmit={handleRoomSubmit} className="space-y-4">
+            <form onSubmit={handleRoomSubmit} className="flex-1 space-y-4 overflow-y-auto px-6 pb-6">
               <div className="grid grid-cols-2 gap-4">
                 <div><label className="mb-1 block text-sm font-medium text-slate-700">Hostel ID</label><input required value={roomForm.hostel_id} onChange={(e) => setRoomForm({ ...roomForm, hostel_id: e.target.value })} placeholder="Enter hostel ID" className="w-full rounded-lg border border-slate-200 px-3 py-2.5 text-sm focus:outline-none focus:border-primary-500 focus:ring-2 focus:ring-primary-500/20" /></div>
                 <div><label className="mb-1 block text-sm font-medium text-slate-700">Room Number</label><input required value={roomForm.room_number} onChange={(e) => setRoomForm({ ...roomForm, room_number: e.target.value })} className="w-full rounded-lg border border-slate-200 px-3 py-2.5 text-sm focus:outline-none focus:border-primary-500 focus:ring-2 focus:ring-primary-500/20" /></div>
@@ -401,12 +454,12 @@ export default function Hostel() {
       {showAssignModal && (
         <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
           <div className="fixed inset-0 bg-black/30 backdrop-blur-sm" onClick={() => setShowAssignModal(false)} />
-          <motion.div initial={{ opacity: 0, scale: 0.95 }} animate={{ opacity: 1, scale: 1 }} className="relative w-full max-w-md rounded-2xl bg-white p-6 shadow-2xl">
-            <div className="mb-6 flex items-center justify-between">
+          <motion.div initial={{ opacity: 0, scale: 0.95 }} animate={{ opacity: 1, scale: 1 }} className="relative flex w-full max-w-md max-h-[90vh] flex-col rounded-2xl bg-white shadow-2xl">
+            <div className="flex items-center justify-between px-6 pt-6 pb-4">
               <h2 className="text-lg font-bold text-slate-800">Assign Student</h2>
               <button onClick={() => setShowAssignModal(false)} className="cursor-pointer rounded-lg p-1.5 text-slate-400 hover:bg-slate-100"><HiOutlineX className="h-5 w-5" /></button>
             </div>
-            <form onSubmit={handleAssign} className="space-y-4">
+            <form onSubmit={handleAssign} className="flex-1 space-y-4 overflow-y-auto px-6 pb-6">
               <div className="grid grid-cols-2 gap-4">
                 <div><label className="mb-1 block text-sm font-medium text-slate-700">Room ID</label><input required value={assignForm.room_id} onChange={(e) => setAssignForm({ ...assignForm, room_id: e.target.value })} placeholder="Enter room ID" className="w-full rounded-lg border border-slate-200 px-3 py-2.5 text-sm focus:outline-none focus:border-primary-500 focus:ring-2 focus:ring-primary-500/20" /></div>
                 <div><label className="mb-1 block text-sm font-medium text-slate-700">Student ID</label><input required value={assignForm.student_id} onChange={(e) => setAssignForm({ ...assignForm, student_id: e.target.value })} placeholder="Enter student ID" className="w-full rounded-lg border border-slate-200 px-3 py-2.5 text-sm focus:outline-none focus:border-primary-500 focus:ring-2 focus:ring-primary-500/20" /></div>
@@ -414,6 +467,100 @@ export default function Hostel() {
               <div className="flex justify-end gap-3 pt-2">
                 <button type="button" onClick={() => setShowAssignModal(false)} className="cursor-pointer rounded-lg border border-slate-200 px-4 py-2.5 text-sm font-medium text-slate-600 hover:bg-slate-50">Cancel</button>
                 <button type="submit" className="cursor-pointer rounded-lg bg-gradient-to-r from-rose-600 to-pink-600 px-6 py-2.5 text-sm font-semibold text-white shadow-lg">Assign</button>
+              </div>
+            </form>
+          </motion.div>
+        </div>
+      )}
+
+      {viewingHostel && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
+          <div className="fixed inset-0 bg-black/30 backdrop-blur-sm" onClick={() => setViewingHostel(null)} />
+          <motion.div initial={{ opacity: 0, scale: 0.95 }} animate={{ opacity: 1, scale: 1 }} className="relative flex w-full max-w-md max-h-[90vh] flex-col rounded-2xl bg-white shadow-2xl">
+            <div className="flex items-center justify-between px-6 pt-6 pb-4">
+              <h2 className="text-lg font-bold text-slate-800">Hostel Details</h2>
+              <button onClick={() => setViewingHostel(null)} className="cursor-pointer rounded-lg p-1.5 text-slate-400 hover:bg-slate-100"><HiOutlineX className="h-5 w-5" /></button>
+            </div>
+            <div className="flex-1 space-y-4 overflow-y-auto px-6 pb-6">
+              <div className="grid grid-cols-2 gap-4 text-sm">
+                <div><p className="text-slate-400">Name</p><p className="font-medium text-slate-700">{viewingHostel.name}</p></div>
+                <div><p className="text-slate-400">Warden Name</p><p className="font-medium text-slate-700">{viewingHostel.warden_name || '—'}</p></div>
+                <div><p className="text-slate-400">Warden Phone</p><p className="font-medium text-slate-700">{viewingHostel.warden_phone || '—'}</p></div>
+                <div><p className="text-slate-400">Total Rooms</p><p className="font-medium text-slate-700">{viewingHostel.total_rooms}</p></div>
+                <div><p className="text-slate-400">Rooms Created</p><p className="font-medium text-slate-700">{viewingHostel._count?.rooms || 0}</p></div>
+              </div>
+            </div>
+            <div className="flex justify-end px-6 pt-2 pb-6">
+              <button onClick={() => setViewingHostel(null)} className="cursor-pointer rounded-lg border border-slate-200 px-4 py-2.5 text-sm font-medium text-slate-600 hover:bg-slate-50">Close</button>
+            </div>
+          </motion.div>
+        </div>
+      )}
+
+      {viewingRoom && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
+          <div className="fixed inset-0 bg-black/30 backdrop-blur-sm" onClick={() => setViewingRoom(null)} />
+          <motion.div initial={{ opacity: 0, scale: 0.95 }} animate={{ opacity: 1, scale: 1 }} className="relative flex w-full max-w-md max-h-[90vh] flex-col rounded-2xl bg-white shadow-2xl">
+            <div className="flex items-center justify-between px-6 pt-6 pb-4">
+              <h2 className="text-lg font-bold text-slate-800">Room Details</h2>
+              <button onClick={() => setViewingRoom(null)} className="cursor-pointer rounded-lg p-1.5 text-slate-400 hover:bg-slate-100"><HiOutlineX className="h-5 w-5" /></button>
+            </div>
+            <div className="flex-1 space-y-4 overflow-y-auto px-6 pb-6">
+              <div className="grid grid-cols-2 gap-4 text-sm">
+                <div><p className="text-slate-400">Room Number</p><p className="font-medium text-slate-700">{viewingRoom.room_number}</p></div>
+                <div><p className="text-slate-400">Hostel</p><p className="font-medium text-slate-700">{viewingRoom.hostel?.name || '—'}</p></div>
+                <div><p className="text-slate-400">Capacity</p><p className="font-medium text-slate-700">{viewingRoom.capacity}</p></div>
+                <div><p className="text-slate-400">Occupants</p><p className="font-medium text-slate-700">{viewingRoom.occupants}</p></div>
+              </div>
+            </div>
+            <div className="flex justify-end px-6 pt-2 pb-6">
+              <button onClick={() => setViewingRoom(null)} className="cursor-pointer rounded-lg border border-slate-200 px-4 py-2.5 text-sm font-medium text-slate-600 hover:bg-slate-50">Close</button>
+            </div>
+          </motion.div>
+        </div>
+      )}
+
+      {viewingAssignment && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
+          <div className="fixed inset-0 bg-black/30 backdrop-blur-sm" onClick={() => setViewingAssignment(null)} />
+          <motion.div initial={{ opacity: 0, scale: 0.95 }} animate={{ opacity: 1, scale: 1 }} className="relative flex w-full max-w-md max-h-[90vh] flex-col rounded-2xl bg-white shadow-2xl">
+            <div className="flex items-center justify-between px-6 pt-6 pb-4">
+              <h2 className="text-lg font-bold text-slate-800">Assignment Details</h2>
+              <button onClick={() => setViewingAssignment(null)} className="cursor-pointer rounded-lg p-1.5 text-slate-400 hover:bg-slate-100"><HiOutlineX className="h-5 w-5" /></button>
+            </div>
+            <div className="flex-1 space-y-4 overflow-y-auto px-6 pb-6">
+              <div className="grid grid-cols-2 gap-4 text-sm">
+                <div><p className="text-slate-400">Student</p><p className="font-medium text-slate-700">{viewingAssignment.student?.first_name} {viewingAssignment.student?.last_name}</p></div>
+                <div><p className="text-slate-400">Room</p><p className="font-medium text-slate-700">{viewingAssignment.room?.room_number || '—'}</p></div>
+                <div><p className="text-slate-400">Hostel</p><p className="font-medium text-slate-700">{viewingAssignment.room?.hostel?.name || '—'}</p></div>
+                <div><p className="text-slate-400">Check In</p><p className="font-medium text-slate-700">{new Date(viewingAssignment.check_in_date).toLocaleDateString()}</p></div>
+                <div><p className="text-slate-400">Check Out</p><p className="font-medium text-slate-700">{viewingAssignment.check_out_date ? new Date(viewingAssignment.check_out_date).toLocaleDateString() : '—'}</p></div>
+              </div>
+            </div>
+            <div className="flex justify-end px-6 pt-2 pb-6">
+              <button onClick={() => setViewingAssignment(null)} className="cursor-pointer rounded-lg border border-slate-200 px-4 py-2.5 text-sm font-medium text-slate-600 hover:bg-slate-50">Close</button>
+            </div>
+          </motion.div>
+        </div>
+      )}
+
+      {editingAssignment && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
+          <div className="fixed inset-0 bg-black/30 backdrop-blur-sm" onClick={() => setEditingAssignment(null)} />
+          <motion.div initial={{ opacity: 0, scale: 0.95 }} animate={{ opacity: 1, scale: 1 }} className="relative flex w-full max-w-md max-h-[90vh] flex-col rounded-2xl bg-white shadow-2xl">
+            <div className="flex items-center justify-between px-6 pt-6 pb-4">
+              <h2 className="text-lg font-bold text-slate-800">Edit Assignment</h2>
+              <button onClick={() => setEditingAssignment(null)} className="cursor-pointer rounded-lg p-1.5 text-slate-400 hover:bg-slate-100"><HiOutlineX className="h-5 w-5" /></button>
+            </div>
+            <form onSubmit={handleEditAssignmentSubmit} className="flex-1 space-y-4 overflow-y-auto px-6 pb-6">
+              <p className="text-sm text-slate-500">{editingAssignment.student?.first_name} {editingAssignment.student?.last_name} — Room {editingAssignment.room?.room_number}</p>
+              <div className="grid grid-cols-2 gap-4">
+                <div><label className="mb-1 block text-sm font-medium text-slate-700">Check In Date</label><input required type="date" value={editAssignForm.check_in_date} onChange={(e) => setEditAssignForm({ ...editAssignForm, check_in_date: e.target.value })} className="w-full rounded-lg border border-slate-200 px-3 py-2.5 text-sm focus:outline-none focus:border-primary-500 focus:ring-2 focus:ring-primary-500/20" /></div>
+                <div><label className="mb-1 block text-sm font-medium text-slate-700">Check Out Date</label><input type="date" value={editAssignForm.check_out_date} onChange={(e) => setEditAssignForm({ ...editAssignForm, check_out_date: e.target.value })} className="w-full rounded-lg border border-slate-200 px-3 py-2.5 text-sm focus:outline-none focus:border-primary-500 focus:ring-2 focus:ring-primary-500/20" /></div>
+              </div>
+              <div className="flex justify-end gap-3 pt-2">
+                <button type="button" onClick={() => setEditingAssignment(null)} className="cursor-pointer rounded-lg border border-slate-200 px-4 py-2.5 text-sm font-medium text-slate-600 hover:bg-slate-50">Cancel</button>
+                <button type="submit" disabled={editAssignSubmitting} className="cursor-pointer rounded-lg bg-gradient-to-r from-rose-600 to-pink-600 px-6 py-2.5 text-sm font-semibold text-white shadow-lg disabled:opacity-60">{editAssignSubmitting ? 'Saving...' : 'Save Changes'}</button>
               </div>
             </form>
           </motion.div>

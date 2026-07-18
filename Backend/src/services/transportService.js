@@ -86,4 +86,22 @@ export const transportService = {
     }
     await prisma.transportAssignment.delete({ where: { id } })
   },
+
+  async updateAssignment(id, { pickup_point, pickup_time, drop_time }, school_id) {
+    const assignment = await prisma.transportAssignment.findFirst({ where: { id, school_id } })
+    if (!assignment) {
+      const err = new Error('Assignment not found')
+      err.statusCode = 404
+      throw err
+    }
+    const updated = await prisma.transportAssignment.update({
+      where: { id },
+      data: { pickup_point, pickup_time, drop_time },
+      include: {
+        student: { select: { id: true, first_name: true, last_name: true } },
+        route: { select: { id: true, route_name: true } },
+      },
+    })
+    return updated
+  },
 }

@@ -7,6 +7,8 @@ import {
   getIssues,
   issueBook,
   returnBook,
+  updateIssue,
+  deleteIssue,
 } from '../controllers/libraryController.js'
 import { protect } from '../middleware/auth.js'
 
@@ -21,5 +23,7 @@ router.delete('/books/:id', deleteBook)
 router.get('/issues', getIssues)
 router.post('/issue', issueBook)
 router.post('/return/:id', returnBook)
+router.put('/issues/:id', updateIssue)
+router.delete('/issues/:id', deleteIssue)
 
 export default router

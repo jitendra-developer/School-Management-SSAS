@@ -15,6 +15,8 @@ export const transportService = {
     api.get<ApiResponse<{ assignments: TransportAssignment[]; total: number }>>('/transport/assignments', { params }),
   assignStudent: (data: Record<string, unknown>) =>
     api.post<ApiResponse<TransportAssignment>>('/transport/assign', data),
+  updateAssignment: (id: string, data: Record<string, unknown>) =>
+    api.put<ApiResponse<TransportAssignment>>(`/transport/assignments/${id}`, data),
   removeAssignment: (id: string) =>
     api.delete<ApiResponse<null>>(`/transport/assignments/${id}`),
 }

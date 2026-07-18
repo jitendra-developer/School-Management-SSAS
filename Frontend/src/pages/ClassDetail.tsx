@@ -312,15 +312,15 @@ export default function ClassDetail() {
           <motion.div
             initial={{ opacity: 0, scale: 0.95 }}
             animate={{ opacity: 1, scale: 1 }}
-            className="relative w-full max-w-lg rounded-2xl bg-white p-6 shadow-2xl"
+            className="relative flex w-full max-w-lg max-h-[90vh] flex-col rounded-2xl bg-white shadow-2xl"
           >
-            <div className="mb-6 flex items-center justify-between">
+            <div className="flex items-center justify-between px-6 pt-6 pb-4">
               <h2 className="text-lg font-bold text-slate-800">Student Details</h2>
               <button onClick={() => setViewing(null)} className="cursor-pointer rounded-lg p-1.5 text-slate-400 hover:bg-slate-100">
                 <HiOutlineX className="h-5 w-5" />
               </button>
             </div>
-            <div className="space-y-4">
+            <div className="flex-1 space-y-4 overflow-y-auto px-6">
               <div className="flex items-center gap-4 pb-4 border-b border-slate-100">
                 <div className="flex h-14 w-14 items-center justify-center rounded-full bg-gradient-to-br from-primary-400 to-violet-500 text-lg font-bold text-white">
                   {viewing.first_name[0]}{viewing.last_name[0]}
@@ -371,7 +371,7 @@ export default function ClassDetail() {
                 </div>
               )}
             </div>
-            <div className="mt-6 flex justify-end">
+            <div className="flex justify-end px-6 pt-6 pb-6">
               <button onClick={() => setViewing(null)} className="cursor-pointer rounded-lg border border-slate-200 px-4 py-2.5 text-sm font-medium text-slate-600 hover:bg-slate-50">Close</button>
             </div>
           </motion.div>
@@ -384,9 +384,9 @@ export default function ClassDetail() {
           <motion.div
             initial={{ opacity: 0, scale: 0.95 }}
             animate={{ opacity: 1, scale: 1 }}
-            className="relative w-full max-w-lg rounded-2xl bg-white p-6 shadow-2xl"
+            className="relative flex w-full max-w-lg max-h-[90vh] flex-col rounded-2xl bg-white shadow-2xl"
           >
-            <div className="mb-6 flex items-center justify-between">
+            <div className="flex items-center justify-between px-6 pt-6 pb-4">
               <h2 className="text-lg font-bold text-slate-800">Bulk Upload Students</h2>
               <button onClick={() => setShowBulkModal(false)} className="cursor-pointer rounded-lg p-1.5 text-slate-400 hover:bg-slate-100">
                 <HiOutlineX className="h-5 w-5" />
@@ -394,7 +394,7 @@ export default function ClassDetail() {
             </div>
 
             {bulkResult ? (
-              <div className="space-y-4">
+              <div className="flex-1 space-y-4 overflow-y-auto px-6 pb-6">
                 <div className={`rounded-lg p-4 ${bulkResult.errors.length ? 'bg-amber-50 border border-amber-200' : 'bg-emerald-50 border border-emerald-200'}`}>
                   <p className="text-sm font-medium text-slate-700">
                     Successfully imported <span className="font-bold text-primary-600">{bulkResult.imported}</span> student(s)
@@ -434,7 +434,7 @@ export default function ClassDetail() {
                     setBulkUploading(false)
                   }
                 }}
-                className="space-y-4"
+                className="flex-1 space-y-4 overflow-y-auto px-6 pb-6"
               >
                 <p className="text-sm text-slate-500">
                   Upload a CSV or Excel file with the following columns:

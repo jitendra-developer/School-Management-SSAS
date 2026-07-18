@@ -1,6 +1,6 @@
-import { useEffect, useState } from 'react'
+import { useEffect, useState, useRef } from 'react'
 import { motion } from 'framer-motion'
-import { HiOutlineSearch, HiOutlinePlus, HiOutlinePencil, HiOutlineTrash, HiOutlineX } from 'react-icons/hi'
+import { HiOutlineSearch, HiOutlinePlus, HiOutlinePencil, HiOutlineTrash, HiOutlineX, HiOutlineEye } from 'react-icons/hi'
 import Skeleton from '@/components/ui/Skeleton'
 import toast from 'react-hot-toast'
 import { timetableService } from '@/services/timetableService'
@@ -26,17 +26,26 @@ export default function Timetable() {
   const [submitting, setSubmitting] = useState(false)
   const [editing, setEditing] = useState<TimetableEntry | null>(null)
   const [form, setForm] = useState({ class_id: '', teacher_id: '', day_of_week: '1', subject: '', start_time: '', end_time: '', room: '' })
+  const [viewing, setViewing] = useState<TimetableEntry | null>(null)
+
+  const fetchIdRef = useRef(0)
 
   useEffect(() => { fetchEntries(); fetchClasses(); fetchTeachers() }, [])
 
   const fetchEntries = async () => {
+    const requestId = ++fetchIdRef.current
+    setLoading(true)
     try {
       const params: Record<string, string> = { limit: '50' }
       if (filterDay) params.day_of_week = filterDay
       const { data } = await timetableService.getAll(params)
+      if (requestId !== fetchIdRef.current) return
       setEntries(data.data?.timetable || [])
-    } catch { toast.error('Failed to load timetable') }
-    finally { setLoading(false) }
+    } catch {
+      if (requestId === fetchIdRef.current) toast.error('Failed to load timetable')
+    } finally {
+      if (requestId === fetchIdRef.current) setLoading(false)
+    }
   }
 
   const fetchClasses = async () => {
@@ -164,6 +173,7 @@ export default function Timetable() {
                   <td className="px-4 py-3 text-slate-600">{t.start_time} - {t.end_time}</td>
                   <td className="px-4 py-3 text-slate-600">{t.room || '—'}</td>
                   <td className="px-4 py-3 text-right">
+                    <button onClick={() => setViewing(t)} className="cursor-pointer rounded-lg p-1.5 text-slate-400 hover:bg-slate-100 hover:text-slate-600"><HiOutlineEye className="h-4 w-4" /></button>
                     <button onClick={() => handleEdit(t)} className="cursor-pointer rounded-lg p-1.5 text-slate-400 hover:bg-primary-50 hover:text-primary-600"><HiOutlinePencil className="h-4 w-4" /></button>
                     <button onClick={() => handleDelete(t.id)} className="cursor-pointer rounded-lg p-1.5 text-slate-400 hover:bg-red-50 hover:text-red-500"><HiOutlineTrash className="h-4 w-4" /></button>
                   </td>
@@ -177,12 +187,12 @@ export default function Timetable() {
       {showModal && (
         <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
           <div className="fixed inset-0 bg-black/30 backdrop-blur-sm" onClick={() => { setShowModal(false); setEditing(null); setClassSubjects([]) }} />
-          <motion.div initial={{ opacity: 0, scale: 0.95 }} animate={{ opacity: 1, scale: 1 }} className="relative w-full max-w-lg rounded-2xl bg-white p-6 shadow-2xl">
-            <div className="mb-6 flex items-center justify-between">
+          <motion.div initial={{ opacity: 0, scale: 0.95 }} animate={{ opacity: 1, scale: 1 }} className="relative flex w-full max-w-lg max-h-[90vh] flex-col rounded-2xl bg-white shadow-2xl">
+            <div className="flex items-center justify-between px-6 pt-6 pb-4">
               <h2 className="text-lg font-bold text-slate-800">{editing ? 'Edit Entry' : 'Add Timetable Entry'}</h2>
               <button onClick={() => { setShowModal(false); setEditing(null); setClassSubjects([]) }} className="cursor-pointer rounded-lg p-1.5 text-slate-400 hover:bg-slate-100"><HiOutlineX className="h-5 w-5" /></button>
             </div>
-            <form onSubmit={handleSubmit} className="space-y-4">
+            <form onSubmit={handleSubmit} className="flex-1 space-y-4 overflow-y-auto px-6 pb-6">
               <div className="grid grid-cols-2 gap-4">
                 <div><label className="mb-1 block text-sm font-medium text-slate-700">Class</label><select required value={form.class_id} onChange={(e) => handleClassChange(e.target.value)} className="w-full rounded-lg border border-slate-200 px-3 py-2.5 text-sm focus:outline-none focus:border-primary-500 focus:ring-2 focus:ring-primary-500/20">
                   <option value="">Select Class</option>
@@ -212,6 +222,31 @@ export default function Timetable() {
                 <button type="submit" disabled={submitting} className="cursor-pointer rounded-lg bg-gradient-to-r from-teal-600 to-cyan-600 px-6 py-2.5 text-sm font-semibold text-white shadow-lg hover:shadow-xl disabled:opacity-60">{submitting ? 'Saving...' : editing ? 'Update' : 'Create'}</button>
               </div>
             </form>
+          </motion.div>
+        </div>
+      )}
+
+      {viewing && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
+          <div className="fixed inset-0 bg-black/30 backdrop-blur-sm" onClick={() => setViewing(null)} />
+          <motion.div initial={{ opacity: 0, scale: 0.95 }} animate={{ opacity: 1, scale: 1 }} className="relative flex w-full max-w-md max-h-[90vh] flex-col rounded-2xl bg-white shadow-2xl">
+            <div className="flex items-center justify-between px-6 pt-6 pb-4">
+              <h2 className="text-lg font-bold text-slate-800">Timetable Entry Details</h2>
+              <button onClick={() => setViewing(null)} className="cursor-pointer rounded-lg p-1.5 text-slate-400 hover:bg-slate-100"><HiOutlineX className="h-5 w-5" /></button>
+            </div>
+            <div className="flex-1 space-y-4 overflow-y-auto px-6 pb-6">
+              <div className="grid grid-cols-2 gap-4 text-sm">
+                <div><p className="text-slate-400">Day</p><p className="font-medium text-slate-700">{DAY_NAMES[viewing.day_of_week] || `Day ${viewing.day_of_week}`}</p></div>
+                <div><p className="text-slate-400">Subject</p><p className="font-medium text-slate-700">{viewing.subject}</p></div>
+                <div><p className="text-slate-400">Class</p><p className="font-medium text-slate-700">{viewing.class?.name || '—'}{viewing.class?.section ? ` (${viewing.class.section})` : ''}</p></div>
+                <div><p className="text-slate-400">Teacher</p><p className="font-medium text-slate-700">{viewing.teacher ? `${viewing.teacher.first_name} ${viewing.teacher.last_name}` : '—'}</p></div>
+                <div><p className="text-slate-400">Time</p><p className="font-medium text-slate-700">{viewing.start_time} - {viewing.end_time}</p></div>
+                <div><p className="text-slate-400">Room</p><p className="font-medium text-slate-700">{viewing.room || '—'}</p></div>
+              </div>
+            </div>
+            <div className="flex justify-end px-6 pt-2 pb-6">
+              <button onClick={() => setViewing(null)} className="cursor-pointer rounded-lg border border-slate-200 px-4 py-2.5 text-sm font-medium text-slate-600 hover:bg-slate-50">Close</button>
+            </div>
           </motion.div>
         </div>
       )}

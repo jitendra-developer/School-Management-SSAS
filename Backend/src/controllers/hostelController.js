@@ -56,3 +56,8 @@ export const removeAssignment = asyncHandler(async (req, res) => {
   await hostelService.removeAssignment(req.params.id, req.admin.school_id)
   return successResponse(res, { message: 'Room assignment removed' })
 })
+
+export const updateAssignment = asyncHandler(async (req, res) => {
+  const data = await hostelService.updateAssignment(req.params.id, req.body, req.admin.school_id)
+  return successResponse(res, { message: 'Room assignment updated', data })
+})

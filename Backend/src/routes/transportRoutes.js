@@ -7,6 +7,7 @@ import {
   getAssignments,
   assignStudent,
   removeAssignment,
+  updateAssignment,
 } from '../controllers/transportController.js'
 import { protect } from '../middleware/auth.js'
 
@@ -20,6 +21,7 @@ router.put('/routes/:id', updateRoute)
 router.delete('/routes/:id', deleteRoute)
 router.get('/assignments', getAssignments)
 router.post('/assign', assignStudent)
+router.put('/assignments/:id', updateAssignment)
 router.delete('/assignments/:id', removeAssignment)
 
 export default router

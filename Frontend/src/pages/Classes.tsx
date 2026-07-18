@@ -17,7 +17,7 @@ export default function Classes() {
   const [loading, setLoading] = useState(true)
   const [showModal, setShowModal] = useState(false)
   const [editing, setEditing] = useState<Class | null>(null)
-  const [form, setForm] = useState({ name: '', section: '', fee_amount: '', teacher_id: '' })
+  const [form, setForm] = useState({ name: '', section: '', fee_amount: '', transport_fee: '', exam_fee: '', other_fee: '', teacher_id: '' })
   const [subjects, setSubjects] = useState<string[]>([])
   const [subjectInput, setSubjectInput] = useState('')
   const [showSuggestions, setShowSuggestions] = useState(false)
@@ -49,7 +49,7 @@ export default function Classes() {
 
   const openCreate = () => {
     setEditing(null)
-    setForm({ name: '', section: '', fee_amount: '', teacher_id: '' })
+    setForm({ name: '', section: '', fee_amount: '', transport_fee: '', exam_fee: '', other_fee: '', teacher_id: '' })
     setSubjects([])
     setSubjectInput('')
     setShowModal(true)
@@ -63,6 +63,9 @@ export default function Classes() {
       name: cls.name,
       section: cls.section || '',
       fee_amount: cls.fee_amount ? String(cls.fee_amount) : '',
+      transport_fee: cls.transport_fee ? String(cls.transport_fee) : '',
+      exam_fee: cls.exam_fee ? String(cls.exam_fee) : '',
+      other_fee: cls.other_fee ? String(cls.other_fee) : '',
       teacher_id: cls.teachers?.[0]?.id || '',
     })
     setSubjects(cls.subjects?.map((s) => s.name) || [])
@@ -103,11 +106,16 @@ export default function Classes() {
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
     if (!form.name.trim()) return
+    if (!form.fee_amount) { toast.error('Fee Amount is required'); return }
+    if (subjects.length === 0) { toast.error('At least one subject is required'); return }
     setSubmitting(true)
     const payload: Record<string, unknown> = {
       name: form.name.trim(),
       section: form.section.trim() || undefined,
       fee_amount: form.fee_amount ? parseFloat(form.fee_amount) : null,
+      transport_fee: form.transport_fee ? parseFloat(form.transport_fee) : null,
+      exam_fee: form.exam_fee ? parseFloat(form.exam_fee) : null,
+      other_fee: form.other_fee ? parseFloat(form.other_fee) : null,
       teacher_id: form.teacher_id || null,
       subjects: subjects,
     }
@@ -121,7 +129,7 @@ export default function Classes() {
       }
       setShowModal(false)
       setEditing(null)
-      setForm({ name: '', section: '', fee_amount: '', teacher_id: '' })
+      setForm({ name: '', section: '', fee_amount: '', transport_fee: '', exam_fee: '', other_fee: '', teacher_id: '' })
       setSubjects([])
       setSubjectInput('')
       fetchClasses()
@@ -243,15 +251,15 @@ export default function Classes() {
           <motion.div
             initial={{ opacity: 0, scale: 0.95 }}
             animate={{ opacity: 1, scale: 1 }}
-            className="relative w-full max-w-md rounded-2xl bg-white p-6 shadow-2xl"
+            className="relative flex w-full max-w-md max-h-[90vh] flex-col rounded-2xl bg-white shadow-2xl"
           >
-            <div className="mb-6 flex items-center justify-between">
+            <div className="flex items-center justify-between px-6 pt-6 pb-4">
               <h2 className="text-lg font-bold text-slate-800">{editing ? 'Edit Class' : 'Add Class'}</h2>
               <button onClick={() => { setShowModal(false); setEditing(null) }} className="cursor-pointer rounded-lg p-1.5 text-slate-400 hover:bg-slate-100">
                 <HiOutlineX className="h-5 w-5" />
               </button>
             </div>
-            <form onSubmit={handleSubmit} className="space-y-4">
+            <form onSubmit={handleSubmit} className="flex-1 space-y-4 overflow-y-auto px-6 pb-6">
               <div>
                 <label className="mb-1 block text-sm font-medium text-slate-700">Class Name</label>
                 <input
@@ -271,22 +279,70 @@ export default function Classes() {
                   className="w-full rounded-lg border border-slate-200 px-3 py-2.5 text-sm focus:outline-none focus:border-primary-500 focus:ring-2 focus:ring-primary-500/20"
                 />
               </div>
-              <div>
-                <label className="mb-1 block text-sm font-medium text-slate-700">
-                  Fixed Fee Amount (optional)
-                </label>
-                <div className="relative">
-                  <span className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400">₹</span>
-                  <input
-                    type="number"
-                    value={form.fee_amount}
-                    onChange={(e) => setForm({ ...form, fee_amount: e.target.value })}
-                    placeholder="e.g. 5000"
-                    className="w-full rounded-lg border border-slate-200 py-2.5 pl-8 pr-3 text-sm focus:outline-none focus:border-primary-500 focus:ring-2 focus:ring-primary-500/20"
-                  />
+              <div className="grid grid-cols-2 gap-3">
+                <div>
+                  <label className="mb-1 block text-sm font-medium text-slate-700">
+                    Fee Amount
+                  </label>
+                  <div className="relative">
+                    <span className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400">₹</span>
+                    <input
+                      required
+                      type="number"
+                      value={form.fee_amount}
+                      onChange={(e) => setForm({ ...form, fee_amount: e.target.value })}
+                      placeholder="e.g. 5000"
+                      className="w-full rounded-lg border border-slate-200 py-2.5 pl-8 pr-3 text-sm focus:outline-none focus:border-primary-500 focus:ring-2 focus:ring-primary-500/20"
+                    />
+                  </div>
                 </div>
-                <p className="mt-1 text-xs text-slate-400">This amount will auto-fill when assigning fees to this class</p>
+                <div>
+                  <label className="mb-1 block text-sm font-medium text-slate-700">
+                    Transport Fee (optional)
+                  </label>
+                  <div className="relative">
+                    <span className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400">₹</span>
+                    <input
+                      type="number"
+                      value={form.transport_fee}
+                      onChange={(e) => setForm({ ...form, transport_fee: e.target.value })}
+                      placeholder="e.g. 1200"
+                      className="w-full rounded-lg border border-slate-200 py-2.5 pl-8 pr-3 text-sm focus:outline-none focus:border-primary-500 focus:ring-2 focus:ring-primary-500/20"
+                    />
+                  </div>
+                </div>
+                <div>
+                  <label className="mb-1 block text-sm font-medium text-slate-700">
+                    Exam Fee (optional)
+                  </label>
+                  <div className="relative">
+                    <span className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400">₹</span>
+                    <input
+                      type="number"
+                      value={form.exam_fee}
+                      onChange={(e) => setForm({ ...form, exam_fee: e.target.value })}
+                      placeholder="e.g. 500"
+                      className="w-full rounded-lg border border-slate-200 py-2.5 pl-8 pr-3 text-sm focus:outline-none focus:border-primary-500 focus:ring-2 focus:ring-primary-500/20"
+                    />
+                  </div>
+                </div>
+                <div>
+                  <label className="mb-1 block text-sm font-medium text-slate-700">
+                    Other Fee (optional)
+                  </label>
+                  <div className="relative">
+                    <span className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400">₹</span>
+                    <input
+                      type="number"
+                      value={form.other_fee}
+                      onChange={(e) => setForm({ ...form, other_fee: e.target.value })}
+                      placeholder="e.g. 300"
+                      className="w-full rounded-lg border border-slate-200 py-2.5 pl-8 pr-3 text-sm focus:outline-none focus:border-primary-500 focus:ring-2 focus:ring-primary-500/20"
+                    />
+                  </div>
+                </div>
               </div>
+              <p className="-mt-2 text-xs text-slate-400">Fee Amount will auto-fill when assigning fees to this class</p>
               <div>
                 <label className="mb-1 block text-sm font-medium text-slate-700">Class Teacher (optional)</label>
                 <select
@@ -305,7 +361,7 @@ export default function Classes() {
                 </select>
               </div>
               <div>
-                <label className="mb-1 block text-sm font-medium text-slate-700">Subjects</label>
+                <label className="mb-1 block text-sm font-medium text-slate-700">Subjects <span className="text-red-500">*</span></label>
                 <div className="flex flex-wrap gap-1.5 mb-2 min-h-[28px]">
                   {subjects.map((s, i) => (
                     <span key={i} className="inline-flex items-center gap-1 rounded-md bg-gradient-to-r from-primary-500 to-violet-500 px-2.5 py-1 text-xs font-medium text-white shadow-sm">
@@ -347,7 +403,7 @@ export default function Classes() {
                     <button type="button" onClick={addSubject} className="cursor-pointer rounded-lg bg-gradient-to-r from-primary-500 to-violet-500 px-4 py-2 text-sm font-medium text-white shadow-sm hover:shadow-md transition-all">Add</button>
                   </div>
                 </div>
-                <p className="mt-1 text-xs text-slate-400">Type to search existing subjects or enter a new one</p>
+                <p className="mt-1 text-xs text-slate-400">Type to search existing subjects or enter a new one. At least one subject is required.</p>
               </div>
               <div className="flex justify-end gap-3 pt-2">
                 <button

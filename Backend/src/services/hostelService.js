@@ -181,4 +181,45 @@ export const hostelService = {
       data: { occupants: { decrement: 1 } },
     })
   },
+
+  async updateAssignment(id, { check_in_date, check_out_date }, school_id) {
+    const assignment = await prisma.roomAssignment.findFirst({ where: { id, school_id } })
+    if (!assignment) {
+      const err = new Error('Assignment not found')
+      err.statusCode = 404
+      throw err
+    }
+
+    const data = {}
+    if (check_in_date) data.check_in_date = new Date(check_in_date)
+
+    let occupancyDelta = 0
+    if (check_out_date !== undefined) {
+      const wasCheckedOut = !!assignment.check_out_date
+      const willBeCheckedOut = !!check_out_date
+      data.check_out_date = check_out_date ? new Date(check_out_date) : null
+      if (!wasCheckedOut && willBeCheckedOut) occupancyDelta = -1
+      else if (wasCheckedOut && !willBeCheckedOut) occupancyDelta = 1
+    }
+
+    const updated = await prisma.roomAssignment.update({
+      where: { id },
+      data,
+      include: {
+        student: { select: { id: true, first_name: true, last_name: true } },
+        room: {
+          select: { id: true, room_number: true, hostel: { select: { id: true, name: true } } },
+        },
+      },
+    })
+
+    if (occupancyDelta !== 0) {
+      await prisma.room.update({
+        where: { id: assignment.room_id },
+        data: { occupants: { increment: occupancyDelta } },
+      })
+    }
+
+    return updated
+  },
 }

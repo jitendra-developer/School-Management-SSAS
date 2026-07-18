@@ -1,6 +1,6 @@
-import { useEffect, useState } from 'react'
+import { useEffect, useState, useRef } from 'react'
 import { motion } from 'framer-motion'
-import { HiOutlineSearch, HiOutlinePlus, HiOutlinePencil, HiOutlineTrash, HiOutlineX, HiOutlineBookOpen, HiOutlineClipboardList, HiOutlineReply } from 'react-icons/hi'
+import { HiOutlineSearch, HiOutlinePlus, HiOutlinePencil, HiOutlineTrash, HiOutlineX, HiOutlineBookOpen, HiOutlineClipboardList, HiOutlineReply, HiOutlineEye } from 'react-icons/hi'
 import Skeleton from '@/components/ui/Skeleton'
 import toast from 'react-hot-toast'
 import { libraryService } from '@/services/libraryService'
@@ -25,25 +25,42 @@ export default function Library() {
   const [bookForm, setBookForm] = useState({ title: '', author: '', isbn: '', publisher: '', quantity: '1', available: '1' })
   const [showIssueModal, setShowIssueModal] = useState(false)
   const [issueForm, setIssueForm] = useState({ book_id: '', student_id: '', due_date: '' })
+  const [viewingBook, setViewingBook] = useState<Book | null>(null)
+  const [viewingIssue, setViewingIssue] = useState<BookIssue | null>(null)
+  const [editingIssue, setEditingIssue] = useState<BookIssue | null>(null)
+  const [editIssueDueDate, setEditIssueDueDate] = useState('')
+  const [editIssueSubmitting, setEditIssueSubmitting] = useState(false)
+
+  const fetchIdRef = useRef(0)
 
   useEffect(() => { tab === 'books' ? fetchBooks() : fetchIssues() }, [tab])
 
   const fetchBooks = async () => {
+    const requestId = ++fetchIdRef.current
     setLoading(true)
     try {
       const { data } = await libraryService.getBooks({ limit: '50' })
+      if (requestId !== fetchIdRef.current) return
       setBooks(data.data?.books || [])
-    } catch { toast.error('Failed to load books') }
-    finally { setLoading(false) }
+    } catch {
+      if (requestId === fetchIdRef.current) toast.error('Failed to load books')
+    } finally {
+      if (requestId === fetchIdRef.current) setLoading(false)
+    }
   }
 
   const fetchIssues = async () => {
+    const requestId = ++fetchIdRef.current
     setLoading(true)
     try {
       const { data } = await libraryService.getIssues({ limit: '50' })
+      if (requestId !== fetchIdRef.current) return
       setIssues(data.data?.issues || [])
-    } catch { toast.error('Failed to load issues') }
-    finally { setLoading(false) }
+    } catch {
+      if (requestId === fetchIdRef.current) toast.error('Failed to load issues')
+    } finally {
+      if (requestId === fetchIdRef.current) setLoading(false)
+    }
   }
 
   const handleBookSubmit = async (e: React.FormEvent) => {
@@ -85,6 +102,30 @@ export default function Library() {
     if (!confirm('Mark this book as returned?')) return
     try { await libraryService.returnBook(id); toast.success('Book returned'); fetchIssues() }
     catch { toast.error('Return failed') }
+  }
+
+  const handleIssueDelete = async (id: string) => {
+    if (!confirm('Delete this issue record?')) return
+    try { await libraryService.deleteIssue(id); toast.success('Issue deleted'); fetchIssues() }
+    catch { toast.error('Delete failed') }
+  }
+
+  const openEditIssue = (i: BookIssue) => {
+    setEditingIssue(i)
+    setEditIssueDueDate(i.due_date.split('T')[0])
+  }
+
+  const handleEditIssueSubmit = async (e: React.FormEvent) => {
+    e.preventDefault()
+    if (!editingIssue) return
+    setEditIssueSubmitting(true)
+    try {
+      await libraryService.updateIssue(editingIssue.id, { due_date: editIssueDueDate })
+      toast.success('Issue updated')
+      setEditingIssue(null)
+      fetchIssues()
+    } catch { toast.error('Update failed') }
+    finally { setEditIssueSubmitting(false) }
   }
 
   const filteredBooks = books.filter((b) =>
@@ -171,6 +212,7 @@ export default function Library() {
                     <td className="px-4 py-3 text-slate-600">{b.quantity}</td>
                     <td className="px-4 py-3"><span className={`rounded-full px-2.5 py-0.5 text-xs font-medium ${b.available > 0 ? 'bg-emerald-100 text-emerald-700' : 'bg-red-100 text-red-700'}`}>{b.available}</span></td>
                     <td className="px-4 py-3 text-right">
+                      <button onClick={() => setViewingBook(b)} className="cursor-pointer rounded-lg p-1.5 text-slate-400 hover:bg-slate-100 hover:text-slate-600"><HiOutlineEye className="h-4 w-4" /></button>
                       <button onClick={() => handleBookEdit(b)} className="cursor-pointer rounded-lg p-1.5 text-slate-400 hover:bg-primary-50 hover:text-primary-600"><HiOutlinePencil className="h-4 w-4" /></button>
                       <button onClick={() => handleBookDelete(b.id)} className="cursor-pointer rounded-lg p-1.5 text-slate-400 hover:bg-red-50 hover:text-red-500"><HiOutlineTrash className="h-4 w-4" /></button>
                     </td>
@@ -212,6 +254,9 @@ export default function Library() {
                     <td className="px-4 py-3 text-slate-600">{new Date(i.due_date).toLocaleDateString()}</td>
                     <td className="px-4 py-3"><span className={`inline-block rounded-full px-2.5 py-0.5 text-xs font-medium capitalize ${issueStatusColors[i.status] || 'bg-slate-100 text-slate-600'}`}>{i.status}</span></td>
                     <td className="px-4 py-3 text-right">
+                      <button onClick={() => setViewingIssue(i)} className="cursor-pointer rounded-lg p-1.5 text-slate-400 hover:bg-slate-100 hover:text-slate-600"><HiOutlineEye className="h-4 w-4" /></button>
+                      <button onClick={() => openEditIssue(i)} className="cursor-pointer rounded-lg p-1.5 text-slate-400 hover:bg-primary-50 hover:text-primary-600"><HiOutlinePencil className="h-4 w-4" /></button>
+                      <button onClick={() => handleIssueDelete(i.id)} className="cursor-pointer rounded-lg p-1.5 text-slate-400 hover:bg-red-50 hover:text-red-500"><HiOutlineTrash className="h-4 w-4" /></button>
                       {i.status !== 'returned' && (
                         <button onClick={() => handleReturn(i.id)} className="cursor-pointer inline-flex items-center gap-1 rounded-lg bg-emerald-50 px-2.5 py-1.5 text-xs font-medium text-emerald-600 hover:bg-emerald-100 transition-colors">
                           <HiOutlineReply className="h-3.5 w-3.5" /> Return
@@ -229,12 +274,12 @@ export default function Library() {
       {showModal && (
         <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
           <div className="fixed inset-0 bg-black/30 backdrop-blur-sm" onClick={() => setShowModal(false)} />
-          <motion.div initial={{ opacity: 0, scale: 0.95 }} animate={{ opacity: 1, scale: 1 }} className="relative w-full max-w-lg rounded-2xl bg-white p-6 shadow-2xl">
-            <div className="mb-6 flex items-center justify-between">
+          <motion.div initial={{ opacity: 0, scale: 0.95 }} animate={{ opacity: 1, scale: 1 }} className="relative flex w-full max-w-lg max-h-[90vh] flex-col rounded-2xl bg-white shadow-2xl">
+            <div className="flex items-center justify-between px-6 pt-6 pb-4">
               <h2 className="text-lg font-bold text-slate-800">{editing ? 'Edit Book' : 'Add Book'}</h2>
               <button onClick={() => setShowModal(false)} className="cursor-pointer rounded-lg p-1.5 text-slate-400 hover:bg-slate-100"><HiOutlineX className="h-5 w-5" /></button>
             </div>
-            <form onSubmit={handleBookSubmit} className="space-y-4">
+            <form onSubmit={handleBookSubmit} className="flex-1 space-y-4 overflow-y-auto px-6 pb-6">
               <div className="grid grid-cols-2 gap-4">
                 <div><label className="mb-1 block text-sm font-medium text-slate-700">Title</label><input required value={bookForm.title} onChange={(e) => setBookForm({ ...bookForm, title: e.target.value })} className="w-full rounded-lg border border-slate-200 px-3 py-2.5 text-sm focus:outline-none focus:border-primary-500 focus:ring-2 focus:ring-primary-500/20" /></div>
                 <div><label className="mb-1 block text-sm font-medium text-slate-700">Author</label><input required value={bookForm.author} onChange={(e) => setBookForm({ ...bookForm, author: e.target.value })} className="w-full rounded-lg border border-slate-200 px-3 py-2.5 text-sm focus:outline-none focus:border-primary-500 focus:ring-2 focus:ring-primary-500/20" /></div>
@@ -259,12 +304,12 @@ export default function Library() {
       {showIssueModal && (
         <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
           <div className="fixed inset-0 bg-black/30 backdrop-blur-sm" onClick={() => setShowIssueModal(false)} />
-          <motion.div initial={{ opacity: 0, scale: 0.95 }} animate={{ opacity: 1, scale: 1 }} className="relative w-full max-w-md rounded-2xl bg-white p-6 shadow-2xl">
-            <div className="mb-6 flex items-center justify-between">
+          <motion.div initial={{ opacity: 0, scale: 0.95 }} animate={{ opacity: 1, scale: 1 }} className="relative flex w-full max-w-md max-h-[90vh] flex-col rounded-2xl bg-white shadow-2xl">
+            <div className="flex items-center justify-between px-6 pt-6 pb-4">
               <h2 className="text-lg font-bold text-slate-800">Issue Book</h2>
               <button onClick={() => setShowIssueModal(false)} className="cursor-pointer rounded-lg p-1.5 text-slate-400 hover:bg-slate-100"><HiOutlineX className="h-5 w-5" /></button>
             </div>
-            <form onSubmit={handleIssue} className="space-y-4">
+            <form onSubmit={handleIssue} className="flex-1 space-y-4 overflow-y-auto px-6 pb-6">
               <div className="grid grid-cols-2 gap-4">
                 <div><label className="mb-1 block text-sm font-medium text-slate-700">Book ID</label><input required value={issueForm.book_id} onChange={(e) => setIssueForm({ ...issueForm, book_id: e.target.value })} placeholder="Enter book ID" className="w-full rounded-lg border border-slate-200 px-3 py-2.5 text-sm focus:outline-none focus:border-primary-500 focus:ring-2 focus:ring-primary-500/20" /></div>
                 <div><label className="mb-1 block text-sm font-medium text-slate-700">Student ID</label><input required value={issueForm.student_id} onChange={(e) => setIssueForm({ ...issueForm, student_id: e.target.value })} placeholder="Enter student ID" className="w-full rounded-lg border border-slate-200 px-3 py-2.5 text-sm focus:outline-none focus:border-primary-500 focus:ring-2 focus:ring-primary-500/20" /></div>
@@ -273,6 +318,76 @@ export default function Library() {
               <div className="flex justify-end gap-3 pt-2">
                 <button type="button" onClick={() => setShowIssueModal(false)} className="cursor-pointer rounded-lg border border-slate-200 px-4 py-2.5 text-sm font-medium text-slate-600 hover:bg-slate-50">Cancel</button>
                 <button type="submit" className="cursor-pointer rounded-lg bg-gradient-to-r from-amber-500 to-orange-600 px-6 py-2.5 text-sm font-semibold text-white shadow-lg">Issue</button>
+              </div>
+            </form>
+          </motion.div>
+        </div>
+      )}
+
+      {viewingBook && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
+          <div className="fixed inset-0 bg-black/30 backdrop-blur-sm" onClick={() => setViewingBook(null)} />
+          <motion.div initial={{ opacity: 0, scale: 0.95 }} animate={{ opacity: 1, scale: 1 }} className="relative flex w-full max-w-md max-h-[90vh] flex-col rounded-2xl bg-white shadow-2xl">
+            <div className="flex items-center justify-between px-6 pt-6 pb-4">
+              <h2 className="text-lg font-bold text-slate-800">Book Details</h2>
+              <button onClick={() => setViewingBook(null)} className="cursor-pointer rounded-lg p-1.5 text-slate-400 hover:bg-slate-100"><HiOutlineX className="h-5 w-5" /></button>
+            </div>
+            <div className="flex-1 space-y-4 overflow-y-auto px-6 pb-6">
+              <div className="grid grid-cols-2 gap-4 text-sm">
+                <div><p className="text-slate-400">Title</p><p className="font-medium text-slate-700">{viewingBook.title}</p></div>
+                <div><p className="text-slate-400">Author</p><p className="font-medium text-slate-700">{viewingBook.author}</p></div>
+                <div><p className="text-slate-400">ISBN</p><p className="font-medium text-slate-700">{viewingBook.isbn || '—'}</p></div>
+                <div><p className="text-slate-400">Publisher</p><p className="font-medium text-slate-700">{viewingBook.publisher || '—'}</p></div>
+                <div><p className="text-slate-400">Total Quantity</p><p className="font-medium text-slate-700">{viewingBook.quantity}</p></div>
+                <div><p className="text-slate-400">Available</p><p className="font-medium text-slate-700">{viewingBook.available}</p></div>
+              </div>
+            </div>
+            <div className="flex justify-end px-6 pt-2 pb-6">
+              <button onClick={() => setViewingBook(null)} className="cursor-pointer rounded-lg border border-slate-200 px-4 py-2.5 text-sm font-medium text-slate-600 hover:bg-slate-50">Close</button>
+            </div>
+          </motion.div>
+        </div>
+      )}
+
+      {viewingIssue && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
+          <div className="fixed inset-0 bg-black/30 backdrop-blur-sm" onClick={() => setViewingIssue(null)} />
+          <motion.div initial={{ opacity: 0, scale: 0.95 }} animate={{ opacity: 1, scale: 1 }} className="relative flex w-full max-w-md max-h-[90vh] flex-col rounded-2xl bg-white shadow-2xl">
+            <div className="flex items-center justify-between px-6 pt-6 pb-4">
+              <h2 className="text-lg font-bold text-slate-800">Issue Details</h2>
+              <button onClick={() => setViewingIssue(null)} className="cursor-pointer rounded-lg p-1.5 text-slate-400 hover:bg-slate-100"><HiOutlineX className="h-5 w-5" /></button>
+            </div>
+            <div className="flex-1 space-y-4 overflow-y-auto px-6 pb-6">
+              <div className="grid grid-cols-2 gap-4 text-sm">
+                <div><p className="text-slate-400">Book</p><p className="font-medium text-slate-700">{viewingIssue.book?.title || '—'}</p></div>
+                <div><p className="text-slate-400">Student</p><p className="font-medium text-slate-700">{viewingIssue.student?.first_name} {viewingIssue.student?.last_name}</p></div>
+                <div><p className="text-slate-400">Issue Date</p><p className="font-medium text-slate-700">{new Date(viewingIssue.issue_date).toLocaleDateString()}</p></div>
+                <div><p className="text-slate-400">Due Date</p><p className="font-medium text-slate-700">{new Date(viewingIssue.due_date).toLocaleDateString()}</p></div>
+                <div><p className="text-slate-400">Status</p><p className="font-medium capitalize text-slate-700">{viewingIssue.status}</p></div>
+                {viewingIssue.return_date && <div><p className="text-slate-400">Return Date</p><p className="font-medium text-slate-700">{new Date(viewingIssue.return_date).toLocaleDateString()}</p></div>}
+              </div>
+            </div>
+            <div className="flex justify-end px-6 pt-2 pb-6">
+              <button onClick={() => setViewingIssue(null)} className="cursor-pointer rounded-lg border border-slate-200 px-4 py-2.5 text-sm font-medium text-slate-600 hover:bg-slate-50">Close</button>
+            </div>
+          </motion.div>
+        </div>
+      )}
+
+      {editingIssue && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
+          <div className="fixed inset-0 bg-black/30 backdrop-blur-sm" onClick={() => setEditingIssue(null)} />
+          <motion.div initial={{ opacity: 0, scale: 0.95 }} animate={{ opacity: 1, scale: 1 }} className="relative flex w-full max-w-md max-h-[90vh] flex-col rounded-2xl bg-white shadow-2xl">
+            <div className="flex items-center justify-between px-6 pt-6 pb-4">
+              <h2 className="text-lg font-bold text-slate-800">Edit Issue</h2>
+              <button onClick={() => setEditingIssue(null)} className="cursor-pointer rounded-lg p-1.5 text-slate-400 hover:bg-slate-100"><HiOutlineX className="h-5 w-5" /></button>
+            </div>
+            <form onSubmit={handleEditIssueSubmit} className="flex-1 space-y-4 overflow-y-auto px-6 pb-6">
+              <p className="text-sm text-slate-500">{editingIssue.book?.title} — {editingIssue.student?.first_name} {editingIssue.student?.last_name}</p>
+              <div><label className="mb-1 block text-sm font-medium text-slate-700">Due Date</label><input required type="date" value={editIssueDueDate} onChange={(e) => setEditIssueDueDate(e.target.value)} className="w-full rounded-lg border border-slate-200 px-3 py-2.5 text-sm focus:outline-none focus:border-primary-500 focus:ring-2 focus:ring-primary-500/20" /></div>
+              <div className="flex justify-end gap-3 pt-2">
+                <button type="button" onClick={() => setEditingIssue(null)} className="cursor-pointer rounded-lg border border-slate-200 px-4 py-2.5 text-sm font-medium text-slate-600 hover:bg-slate-50">Cancel</button>
+                <button type="submit" disabled={editIssueSubmitting} className="cursor-pointer rounded-lg bg-gradient-to-r from-amber-500 to-orange-600 px-6 py-2.5 text-sm font-semibold text-white shadow-lg disabled:opacity-60">{editIssueSubmitting ? 'Saving...' : 'Save Changes'}</button>
               </div>
             </form>
           </motion.div>

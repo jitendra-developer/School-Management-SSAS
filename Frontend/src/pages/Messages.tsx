@@ -1,6 +1,6 @@
 import { useEffect, useState } from 'react'
 import { motion } from 'framer-motion'
-import { HiOutlineSearch, HiOutlineMailOpen, HiOutlinePaperAirplane, HiOutlineX, HiOutlineReply } from 'react-icons/hi'
+import { HiOutlineSearch, HiOutlineMailOpen, HiOutlinePaperAirplane, HiOutlineX, HiOutlineReply, HiOutlineEye, HiOutlineTrash } from 'react-icons/hi'
 import Skeleton from '@/components/ui/Skeleton'
 import toast from 'react-hot-toast'
 import { messageService } from '@/services/messageService'
@@ -45,6 +45,16 @@ export default function Messages() {
   const openMessage = (msg: Message) => {
     setViewing(msg)
     if (!msg.read) handleMarkRead(msg.id)
+  }
+
+  const handleDeleteMessage = async (id: string) => {
+    if (!confirm('Delete this message?')) return
+    try {
+      await messageService.delete(id)
+      toast.success('Message deleted')
+      setMessages((prev) => prev.filter((m) => m.id !== id))
+      if (viewing?.id === id) setViewing(null)
+    } catch { toast.error('Delete failed') }
   }
 
   const unreadCount = messages.filter((m) => !m.read).length
@@ -112,10 +122,12 @@ export default function Messages() {
               </div>
               <div className="shrink-0 flex gap-1" onClick={(e) => e.stopPropagation()}>
                 {!m.read && (
-                  <button onClick={() => handleMarkRead(m.id)} className="rounded-lg p-1.5 text-slate-400 hover:bg-primary-50 hover:text-primary-600" title="Mark as read">
+                  <button onClick={() => handleMarkRead(m.id)} className="cursor-pointer rounded-lg p-1.5 text-slate-400 hover:bg-primary-50 hover:text-primary-600" title="Mark as read">
                     <HiOutlineMailOpen className="h-4 w-4" />
                   </button>
                 )}
+                <button onClick={() => openMessage(m)} className="cursor-pointer rounded-lg p-1.5 text-slate-400 hover:bg-slate-100 hover:text-slate-600" title="View"><HiOutlineEye className="h-4 w-4" /></button>
+                <button onClick={() => handleDeleteMessage(m.id)} className="cursor-pointer rounded-lg p-1.5 text-slate-400 hover:bg-red-50 hover:text-red-500" title="Delete"><HiOutlineTrash className="h-4 w-4" /></button>
               </div>
             </motion.div>
           ))}
@@ -125,12 +137,12 @@ export default function Messages() {
       {showCompose && (
         <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
           <div className="fixed inset-0 bg-black/30 backdrop-blur-sm" onClick={() => setShowCompose(false)} />
-          <motion.div initial={{ opacity: 0, scale: 0.95 }} animate={{ opacity: 1, scale: 1 }} className="relative w-full max-w-lg rounded-2xl bg-white p-6 shadow-2xl">
-            <div className="mb-6 flex items-center justify-between">
+          <motion.div initial={{ opacity: 0, scale: 0.95 }} animate={{ opacity: 1, scale: 1 }} className="relative flex w-full max-w-lg max-h-[90vh] flex-col rounded-2xl bg-white shadow-2xl">
+            <div className="flex items-center justify-between px-6 pt-6 pb-4">
               <h2 className="text-lg font-bold text-slate-800">Compose Message</h2>
               <button onClick={() => setShowCompose(false)} className="cursor-pointer rounded-lg p-1.5 text-slate-400 hover:bg-slate-100"><HiOutlineX className="h-5 w-5" /></button>
             </div>
-            <form onSubmit={handleSend} className="space-y-4">
+            <form onSubmit={handleSend} className="flex-1 space-y-4 overflow-y-auto px-6 pb-6">
               <div><label className="mb-1 block text-sm font-medium text-slate-700">Recipient ID</label><input required value={composeForm.receiver_id} onChange={(e) => setComposeForm({ ...composeForm, receiver_id: e.target.value })} placeholder="Enter user ID" className="w-full rounded-lg border border-slate-200 px-3 py-2.5 text-sm focus:outline-none focus:border-primary-500 focus:ring-2 focus:ring-primary-500/20" /></div>
               <div><label className="mb-1 block text-sm font-medium text-slate-700">Subject</label><input required value={composeForm.subject} onChange={(e) => setComposeForm({ ...composeForm, subject: e.target.value })} className="w-full rounded-lg border border-slate-200 px-3 py-2.5 text-sm focus:outline-none focus:border-primary-500 focus:ring-2 focus:ring-primary-500/20" /></div>
               <div><label className="mb-1 block text-sm font-medium text-slate-700">Message</label><textarea required value={composeForm.body} onChange={(e) => setComposeForm({ ...composeForm, body: e.target.value })} rows={5} className="w-full rounded-lg border border-slate-200 px-3 py-2.5 text-sm focus:outline-none focus:border-primary-500 focus:ring-2 focus:ring-primary-500/20" /></div>
@@ -148,12 +160,12 @@ export default function Messages() {
       {viewing && (
         <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
           <div className="fixed inset-0 bg-black/30 backdrop-blur-sm" onClick={() => setViewing(null)} />
-          <motion.div initial={{ opacity: 0, scale: 0.95 }} animate={{ opacity: 1, scale: 1 }} className="relative w-full max-w-2xl rounded-2xl bg-white p-6 shadow-2xl">
-            <div className="mb-6 flex items-center justify-between">
+          <motion.div initial={{ opacity: 0, scale: 0.95 }} animate={{ opacity: 1, scale: 1 }} className="relative flex w-full max-w-2xl max-h-[90vh] flex-col rounded-2xl bg-white shadow-2xl">
+            <div className="flex items-center justify-between px-6 pt-6 pb-4">
               <h2 className="text-lg font-bold text-slate-800">{viewing.subject}</h2>
               <button onClick={() => setViewing(null)} className="cursor-pointer rounded-lg p-1.5 text-slate-400 hover:bg-slate-100"><HiOutlineX className="h-5 w-5" /></button>
             </div>
-            <div className="space-y-4">
+            <div className="flex-1 space-y-4 overflow-y-auto px-6 pb-6">
               <div className="flex items-center gap-3 pb-4 border-b border-slate-100">
                 <div className="flex h-10 w-10 items-center justify-center rounded-full bg-gradient-to-br from-sky-400 to-blue-500 text-sm font-bold text-white">{viewing.sender?.name?.[0] || '?'}</div>
                 <div>
@@ -162,7 +174,10 @@ export default function Messages() {
                 </div>
               </div>
               <div className="text-sm text-slate-700 leading-relaxed whitespace-pre-wrap">{viewing.body}</div>
-              <div className="flex justify-end pt-2">
+              <div className="flex justify-end gap-3 pt-2">
+                <button onClick={() => handleDeleteMessage(viewing.id)} className="cursor-pointer inline-flex items-center gap-1.5 rounded-lg border border-slate-200 px-4 py-2 text-sm font-medium text-red-600 hover:bg-red-50 transition-colors">
+                  <HiOutlineTrash className="h-4 w-4" /> Delete
+                </button>
                 <button onClick={() => { setViewing(null); setComposeForm({ receiver_id: viewing.sender_id, subject: `Re: ${viewing.subject}`, body: '' }); setShowCompose(true) }} className="cursor-pointer inline-flex items-center gap-1.5 rounded-lg border border-slate-200 px-4 py-2 text-sm font-medium text-slate-600 hover:bg-slate-50 transition-colors">
                   <HiOutlineReply className="h-4 w-4" /> Reply
                 </button>

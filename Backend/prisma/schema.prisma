@@ -31,6 +31,8 @@ model School {
   classes   Class[]
   fee_plans    FeePlan[]
   fees         Fee[]
+  fee_payments FeePayment[]
+  fee_receipt_seq Int      @default(0)
   exams        Exam[]
   timetable_entries TimetableEntry[]
   transport_routes  TransportRoute[]
@@ -80,17 +82,21 @@ model PasswordResetToken {
 }
 
 model Class {
-  id         String   @id @default(uuid())
-  school_id  String
-  school     School   @relation(fields: [school_id], references: [id], onDelete: Cascade)
-  name       String
-  section    String?
-  fee_amount Float?
-  created_at DateTime @default(now())
-  updated_at DateTime @updatedAt
+  id             String   @id @default(uuid())
+  school_id      String
+  school         School   @relation(fields: [school_id], references: [id], onDelete: Cascade)
+  name           String
+  section        String?
+  fee_amount     Float?
+  transport_fee  Float?
+  exam_fee       Float?
+  other_fee      Float?
+  created_at     DateTime @default(now())
+  updated_at     DateTime @updatedAt
 
   students          Student[]
   teachers          Teacher[]
+  teaching_teachers Teacher[]        @relation("TeacherClasses")
   fees              Fee[]
   exams             Exam[]
   timetable_entries TimetableEntry[]
@@ -156,6 +162,7 @@ model Teacher {
   class_id      String?
   school        School    @relation(fields: [school_id], references: [id], onDelete: Cascade)
   class         Class?    @relation(fields: [class_id], references: [id], onDelete: SetNull)
+  classes       Class[]   @relation("TeacherClasses")
   first_name    String
   last_name     String
   email         String?
@@ -444,6 +451,7 @@ model FeePlan {
   name        String
   amount      Float
   frequency   String   @default("monthly")
+  category    String   @default("tuition")
   description String?
   due_date    Int?
   created_at  DateTime @default(now())
@@ -456,27 +464,52 @@ model FeePlan {
 }
 
 model Fee {
-  id             String    @id @default(uuid())
-  school_id      String
-  student_id     String
-  class_id       String
-  plan_id        String?
-  school         School    @relation(fields: [school_id], references: [id], onDelete: Cascade)
-  student        Student   @relation(fields: [student_id], references: [id], onDelete: Cascade)
-  class          Class     @relation(fields: [class_id], references: [id], onDelete: Cascade)
-  plan           FeePlan?  @relation(fields: [plan_id], references: [id], onDelete: SetNull)
-  amount         Float
-  paid           Float     @default(0)
-  due_date       DateTime
-  status         String    @default("pending")
-  payment_date   DateTime?
-  payment_method String?
-  remark         String?
-  created_at     DateTime  @default(now())
-  updated_at     DateTime  @updatedAt
+  id               String    @id @default(uuid())
+  school_id        String
+  student_id       String
+  class_id         String
+  plan_id          String?
+  school           School    @relation(fields: [school_id], references: [id], onDelete: Cascade)
+  student          Student   @relation(fields: [student_id], references: [id], onDelete: Cascade)
+  class            Class     @relation(fields: [class_id], references: [id], onDelete: Cascade)
+  plan             FeePlan?  @relation(fields: [plan_id], references: [id], onDelete: SetNull)
+  tuition_amount   Float     @default(0)
+  transport_amount Float     @default(0)
+  exam_amount      Float     @default(0)
+  other_amount     Float     @default(0)
+  amount           Float
+  paid             Float     @default(0)
+  due_date         DateTime
+  status           String    @default("pending")
+  payment_date     DateTime?
+  payment_method   String?
+  remark           String?
+  created_at       DateTime  @default(now())
+  updated_at       DateTime  @updatedAt
+
+  payments FeePayment[]
 
   @@index([school_id])
   @@index([student_id])
   @@index([status])
   @@map("fees")
+}
+
+model FeePayment {
+  id             String   @id @default(uuid())
+  school_id      String
+  school         School   @relation(fields: [school_id], references: [id], onDelete: Cascade)
+  fee_id         String
+  fee            Fee      @relation(fields: [fee_id], references: [id], onDelete: Cascade)
+  receipt_number String
+  amount         Float
+  payment_method String
+  payment_date   DateTime @default(now())
+  remark         String?
+  created_at     DateTime @default(now())
+
+  @@unique([school_id, receipt_number])
+  @@index([school_id])
+  @@index([fee_id])
+  @@map("fee_payments")
 }

@@ -21,3 +21,8 @@ export const markRead = asyncHandler(async (req, res) => {
   const data = await messageService.markRead(req.params.id, req.admin.school_id)
   return successResponse(res, { message: 'Message marked as read', data })
 })
+
+export const deleteMessage = asyncHandler(async (req, res) => {
+  await messageService.deleteMessage(req.params.id, req.admin.school_id)
+  return successResponse(res, { message: 'Message deleted' })
+})
