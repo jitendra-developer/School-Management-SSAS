@@ -57,10 +57,12 @@ model Admin {
   password      String
   role          String   @default("super_admin")
   profile_image String?
+  token_version Int      @default(0)
   created_at    DateTime @default(now())
   updated_at    DateTime @updatedAt
 
   password_reset_tokens PasswordResetToken[]
+  login_otps            LoginOtp[]
   sent_messages         Message[]
 
   @@index([school_id])
@@ -79,6 +81,19 @@ model PasswordResetToken {
   @@index([admin_id])
   @@index([otp])
   @@map("password_reset_tokens")
+}
+
+model LoginOtp {
+  id         String   @id @default(uuid())
+  admin_id   String
+  admin      Admin    @relation(fields: [admin_id], references: [id], onDelete: Cascade)
+  otp        String
+  expires_at DateTime
+  used       Boolean  @default(false)
+  created_at DateTime @default(now())
+
+  @@index([admin_id])
+  @@map("login_otps")
 }
 
 model Class {
@@ -174,6 +189,7 @@ model Teacher {
   dob           DateTime?
   photo         String?
   password      String?
+  token_version Int       @default(0)
   joining_date  DateTime  @default(now())
   status        String    @default("active")
   created_at    DateTime  @default(now())

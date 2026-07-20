@@ -3,12 +3,14 @@ import crypto from 'crypto'
 import { prisma } from '../config/db.js'
 import { generateToken } from '../utils/token.js'
 import { cloudinary } from '../config/cloudinary.js'
+import { emailService } from './emailService.js'
 
 const SALT_ROUNDS = 12
 const OTP_EXPIRY_MINUTES = 15
+const LOGIN_OTP_EXPIRY_MINUTES = 10
 
 const sanitizeAdmin = (admin) => {
-  const { password, ...rest } = admin
+  const { password, token_version, ...rest } = admin
   return rest
 }
 
@@ -55,7 +57,7 @@ export const authService = {
       return { school, admin }
     })
 
-    const token = generateToken(result.admin.id)
+    const token = generateToken(result.admin.id, result.admin.token_version)
 
     return {
       token,
@@ -87,14 +89,97 @@ export const authService = {
       throw err
     }
 
-    const token = generateToken(admin.id)
-    const { password: _, school, ...adminData } = admin
+    // Password verified — now require an OTP before issuing a token.
+    const otp = crypto.randomInt(100000, 999999).toString()
+
+    await prisma.loginOtp.updateMany({
+      where: { admin_id: admin.id, used: false },
+      data: { used: true },
+    })
+
+    await prisma.loginOtp.create({
+      data: {
+        admin_id: admin.id,
+        otp,
+        expires_at: new Date(Date.now() + LOGIN_OTP_EXPIRY_MINUTES * 60 * 1000),
+      },
+    })
+
+    try {
+      await emailService.sendLoginOtpEmail(admin, admin.school, otp)
+    } catch {
+      const err = new Error('Failed to send OTP email. Please try again.')
+      err.statusCode = 500
+      throw err
+    }
+
+    return {
+      requiresOtp: true,
+      email: admin.email,
+      message: 'OTP sent to your registered email',
+    }
+  },
+
+  async verifyLoginOtp({ email, otp }) {
+    const admin = await prisma.admin.findUnique({
+      where: { email },
+      include: {
+        school: {
+          select: { id: true, school_name: true, email: true, phone: true },
+        },
+      },
+    })
+
+    if (!admin) {
+      const err = new Error('Invalid request')
+      err.statusCode = 400
+      throw err
+    }
+
+    const record = await prisma.loginOtp.findFirst({
+      where: {
+        admin_id: admin.id,
+        otp,
+        used: false,
+        expires_at: { gte: new Date() },
+      },
+    })
+
+    if (!record) {
+      const err = new Error('Invalid or expired OTP')
+      err.statusCode = 400
+      throw err
+    }
+
+    await prisma.loginOtp.update({
+      where: { id: record.id },
+      data: { used: true },
+    })
+
+    // Bumping token_version invalidates any token issued by a previous
+    // login (e.g. on another device), so each login is a fresh session.
+    const { token_version } = await prisma.admin.update({
+      where: { id: admin.id },
+      data: { token_version: { increment: 1 } },
+      select: { token_version: true },
+    })
+
+    const token = generateToken(admin.id, token_version)
+    const { password: _, token_version: __, school, ...adminData } = admin
 
     return {
       token,
       admin: adminData,
       school,
     }
+  },
+
+  async logout(adminId) {
+    await prisma.admin.update({
+      where: { id: adminId },
+      data: { token_version: { increment: 1 } },
+    })
+    return { message: 'Logged out successfully' }
   },
 
   async getProfile(adminId) {
@@ -239,13 +324,27 @@ export const authService = {
       throw err
     }
 
-    const token = generateToken(teacher.id)
-    const { password: _, ...teacherData } = teacher
+    const { token_version } = await prisma.teacher.update({
+      where: { id: teacher.id },
+      data: { token_version: { increment: 1 } },
+      select: { token_version: true },
+    })
+
+    const token = generateToken(teacher.id, token_version)
+    const { password: _, token_version: __, ...teacherData } = teacher
 
     return {
       token,
       teacher: teacherData,
     }
+  },
+
+  async teacherLogout(teacherId) {
+    await prisma.teacher.update({
+      where: { id: teacherId },
+      data: { token_version: { increment: 1 } },
+    })
+    return { message: 'Logged out successfully' }
   },
 
   async changePassword(adminId, { currentPassword, newPassword }) {
@@ -420,7 +519,9 @@ export const authService = {
     await prisma.$transaction([
       prisma.admin.update({
         where: { id: admin.id },
-        data: { password: hashedPassword },
+        // Also bump token_version — if the account was compromised (hence
+        // the reset), this kills any token an attacker may be holding.
+        data: { password: hashedPassword, token_version: { increment: 1 } },
       }),
       prisma.passwordResetToken.update({
         where: { id: token.id },

@@ -43,6 +43,23 @@ export const login = asyncHandler(async (req, res) => {
   const data = await authService.login({ email, password })
 
   return successResponse(res, {
+    message: data.message,
+    data,
+  })
+})
+
+export const verifyLoginOtp = asyncHandler(async (req, res) => {
+  const { email, otp } = req.body
+
+  if (!email || !otp) {
+    const err = new Error('Email and OTP are required')
+    err.statusCode = 400
+    throw err
+  }
+
+  const data = await authService.verifyLoginOtp({ email, otp })
+
+  return successResponse(res, {
     message: 'Login successful',
     data,
   })
@@ -78,6 +95,24 @@ export const uploadProfileImage = [
     })
   }),
 ]
+
+export const logout = asyncHandler(async (req, res) => {
+  const data = await authService.logout(req.admin.id)
+
+  return successResponse(res, {
+    message: data.message,
+    data,
+  })
+})
+
+export const teacherLogout = asyncHandler(async (req, res) => {
+  const data = await authService.teacherLogout(req.teacher.id)
+
+  return successResponse(res, {
+    message: data.message,
+    data,
+  })
+})
 
 export const teacherLogin = asyncHandler(async (req, res) => {
   const { email, password } = req.body

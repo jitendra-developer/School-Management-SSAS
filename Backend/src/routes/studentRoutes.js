@@ -7,12 +7,14 @@ import {
   deleteStudent,
 } from '../controllers/studentController.js'
 import { protect } from '../middleware/auth.js'
+import { validate } from '../middleware/validate.js'
+import { createStudentSchema, updateStudentSchema } from '../validations/studentValidation.js'
 
 const router = Router()
 
 router.use(protect)
 
-router.route('/').post(createStudent).get(getAllStudents)
-router.route('/:id').get(getStudentById).put(updateStudent).delete(deleteStudent)
+router.route('/').post(validate(createStudentSchema), createStudent).get(getAllStudents)
+router.route('/:id').get(getStudentById).put(validate(updateStudentSchema), updateStudent).delete(deleteStudent)
 
 export default router

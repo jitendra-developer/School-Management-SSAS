@@ -10,7 +10,7 @@ import {
 } from 'react'
 import toast from 'react-hot-toast'
 import { authService } from '@/services/authService'
-import type { Admin, LoginPayload, RegisterPayload } from '@/types/auth'
+import type { Admin, LoginPayload, RegisterPayload, VerifyOtpPayload } from '@/types/auth'
 import type { ApiResponse } from '@/types/api'
 import { storage } from '@/utils/storage'
 import { scheduleAutoLogout } from '@/utils/autoLogout'
@@ -19,7 +19,8 @@ interface AuthContextValue {
   admin: Admin | null
   isAuthenticated: boolean
   isLoading: boolean
-  login: (payload: LoginPayload) => Promise<void>
+  login: (payload: LoginPayload) => Promise<{ email: string }>
+  verifyLoginOtp: (payload: VerifyOtpPayload) => Promise<void>
   register: (payload: RegisterPayload) => Promise<void>
   logout: () => void
   setAdmin: (admin: Admin) => void
@@ -37,6 +38,10 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       clearTimeout(timerRef.current)
       timerRef.current = undefined
     }
+    // Fire-and-forget: this invalidates the token server-side (bumps
+    // token_version) so it can't be replayed after logout. We still clear
+    // local state immediately regardless of whether the request succeeds.
+    authService.logout().catch(() => {})
     storage.clearAuth()
     setAdmin(null)
     toast.success('Logged out')
@@ -91,9 +96,15 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     }
   }, [startSession])
 
-  const login = useCallback(
-    async (payload: LoginPayload) => {
-      const { data } = await authService.login(payload)
+  const login = useCallback(async (payload: LoginPayload) => {
+    const { data } = await authService.login(payload)
+    if (!data.success) throw new Error(data.message)
+    return { email: payload.email }
+  }, [])
+
+  const verifyLoginOtp = useCallback(
+    async (payload: VerifyOtpPayload) => {
+      const { data } = await authService.verifyLoginOtp(payload)
       if (!data.success || !data.data) throw new Error(data.message)
       storage.setToken(data.data.token)
       storage.setAdmin(data.data.admin)
@@ -123,11 +134,12 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       isAuthenticated: !!admin,
       isLoading,
       login,
+      verifyLoginOtp,
       register,
       logout,
       setAdmin,
     }),
-    [admin, isLoading, login, register, logout]
+    [admin, isLoading, login, verifyLoginOtp, register, logout]
   )
 
   return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>

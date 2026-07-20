@@ -14,22 +14,31 @@ import {
   updateFee,
 } from '../controllers/feeController.js'
 import { protect } from '../middleware/auth.js'
+import { validate } from '../middleware/validate.js'
+import {
+  createFeePlanSchema,
+  updateFeePlanSchema,
+  assignFeeSchema,
+  assignFeeBatchSchema,
+  recordPaymentSchema,
+  updateFeeSchema,
+} from '../validations/feeValidation.js'
 
 const router = Router()
 
 router.use(protect)
 
 router.get('/plans', getFeePlans)
-router.post('/plans', createFeePlan)
-router.put('/plans/:id', updateFeePlan)
+router.post('/plans', validate(createFeePlanSchema), createFeePlan)
+router.put('/plans/:id', validate(updateFeePlanSchema), updateFeePlan)
 router.delete('/plans/:id', deleteFeePlan)
-router.post('/assign', assignFee)
-router.post('/assign-batch', assignFeeBatch)
-router.post('/pay/:feeId', recordPayment)
+router.post('/assign', validate(assignFeeSchema), assignFee)
+router.post('/assign-batch', validate(assignFeeBatchSchema), assignFeeBatch)
+router.post('/pay/:feeId', validate(recordPaymentSchema), recordPayment)
 router.get('/', getFees)
 router.get('/pending', getPendingFees)
 router.get('/:feeId/payments', getFeePayments)
 router.get('/:id', getFeeById)
-router.put('/:id', updateFee)
+router.put('/:id', validate(updateFeeSchema), updateFee)
 
 export default router

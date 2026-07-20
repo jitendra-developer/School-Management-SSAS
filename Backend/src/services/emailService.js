@@ -69,6 +69,29 @@ export const emailService = {
     return { sent: true, recipient: recipientEmail, studentName }
   },
 
+  async sendLoginOtpEmail(admin, school, otp) {
+    const transporter = getTransporter()
+    const schoolName = school?.school_name || 'School'
+
+    await transporter.sendMail({
+      from: `"${schoolName}" <${process.env.SMTP_FROM || process.env.SMTP_USER}>`,
+      to: admin.email,
+      subject: `Login OTP - ${schoolName}`,
+      html: `
+        <div style="font-family: Arial, sans-serif; max-width: 480px; margin: 0 auto;">
+          <h2 style="color: #2563eb;">Login Verification</h2>
+          <p>Hi ${admin.name || ''},</p>
+          <p>Use the OTP below to complete your login to ${schoolName}:</p>
+          <div style="font-size: 32px; font-weight: bold; color: #2563eb; text-align: center; padding: 20px; letter-spacing: 8px; background: #f4f6fc; border-radius: 12px; margin: 16px 0;">
+            ${otp}
+          </div>
+          <p>This OTP expires in 10 minutes.</p>
+          <p>If you did not attempt to log in, please secure your account immediately.</p>
+        </div>
+      `,
+    })
+  },
+
   async sendTeacherWelcomeEmail(teacher, school, password) {
     const transporter = getTransporter()
     const teacherName = `${teacher.first_name} ${teacher.last_name}`

@@ -1,5 +1,6 @@
 import express from 'express'
 import cors from 'cors'
+import helmet from 'helmet'
 import cookieParser from 'cookie-parser'
 import dotenv from 'dotenv'
 import routes from './routes/index.js'
@@ -11,6 +12,14 @@ dotenv.config()
 const app = express()
 
 // Middleware
+app.use(
+  helmet({
+    // This is a pure JSON API (no HTML served), so the default CSP only adds
+    // noise — disable it and keep the rest of helmet's protective headers.
+    contentSecurityPolicy: false,
+    crossOriginResourcePolicy: { policy: 'cross-origin' },
+  })
+)
 app.use(
   cors({
     origin: process.env.CLIENT_URL || 'http://localhost:5173',

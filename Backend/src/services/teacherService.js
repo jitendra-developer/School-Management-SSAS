@@ -5,7 +5,7 @@ const SALT_ROUNDS = 12
 
 const sanitize = (teacher) => {
   if (!teacher) return teacher
-  const { password, ...rest } = teacher
+  const { password, token_version, ...rest } = teacher
   return rest
 }
 

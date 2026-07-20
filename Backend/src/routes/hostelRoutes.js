@@ -14,20 +14,29 @@ import {
   updateAssignment,
 } from '../controllers/hostelController.js'
 import { protect } from '../middleware/auth.js'
+import { validate } from '../middleware/validate.js'
+import {
+  createHostelSchema,
+  updateHostelSchema,
+  createRoomSchema,
+  updateRoomSchema,
+  assignStudentSchema,
+  updateAssignmentSchema,
+} from '../validations/hostelValidation.js'
 
 const router = Router()
 
 router.use(protect)
 
-router.route('/').get(getHostels).post(createHostel)
-router.route('/:id').put(updateHostel).delete(deleteHostel)
+router.route('/').get(getHostels).post(validate(createHostelSchema), createHostel)
+router.route('/:id').put(validate(updateHostelSchema), updateHostel).delete(deleteHostel)
 router.get('/:hostelId/rooms', getRooms)
-router.post('/rooms', createRoom)
-router.put('/rooms/:id', updateRoom)
+router.post('/rooms', validate(createRoomSchema), createRoom)
+router.put('/rooms/:id', validate(updateRoomSchema), updateRoom)
 router.delete('/rooms/:id', deleteRoom)
 router.get('/assignments/all', getAssignments)
-router.post('/assign', assignStudent)
-router.put('/assignments/:id', updateAssignment)
+router.post('/assign', validate(assignStudentSchema), assignStudent)
+router.put('/assignments/:id', validate(updateAssignmentSchema), updateAssignment)
 router.delete('/assignments/:id', removeAssignment)
 
 export default router

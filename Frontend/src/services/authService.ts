@@ -15,9 +15,14 @@ export const authService = {
     api.post<ApiResponse<AuthResponse['data']>>('/auth/register', payload),
 
   login: (payload: LoginPayload) =>
-    api.post<ApiResponse<AuthResponse['data']>>('/auth/login', payload),
+    api.post<ApiResponse<{ requiresOtp: true; email: string; message: string }>>('/auth/login', payload),
+
+  verifyLoginOtp: (payload: VerifyOtpPayload) =>
+    api.post<ApiResponse<AuthResponse['data']>>('/auth/login/verify-otp', payload),
 
   getMe: () => api.get<ApiResponse>('/auth/me'),
+
+  logout: () => api.post<ApiResponse>('/auth/logout'),
 
   changePassword: (payload: ChangePasswordPayload) =>
     api.post<ApiResponse>('/auth/change-password', payload),
@@ -33,4 +38,6 @@ export const authService = {
 
   teacherLogin: (payload: LoginPayload) =>
     api.post<ApiResponse<{ token: string; teacher: Record<string, unknown> }>>('/auth/teacher/login', payload),
+
+  teacherLogout: () => api.post<ApiResponse>('/auth/teacher/logout'),
 }

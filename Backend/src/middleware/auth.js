@@ -32,6 +32,7 @@ export const protect = async (req, res, next) => {
         name: true,
         email: true,
         role: true,
+        token_version: true,
         created_at: true,
         school: {
           select: {
@@ -48,7 +49,12 @@ export const protect = async (req, res, next) => {
       return errorResponse(res, { message: 'Admin not found', statusCode: 401 })
     }
 
-    req.admin = admin
+    if (decoded.v !== admin.token_version) {
+      return errorResponse(res, { message: 'Session expired — please log in again', statusCode: 401 })
+    }
+
+    const { token_version, ...adminData } = admin
+    req.admin = adminData
     next()
   } catch {
     return errorResponse(res, { message: 'Not authorized — invalid token', statusCode: 401 })
@@ -71,20 +77,28 @@ export const protectAdminOrTeacher = async (req, res, next) => {
     // Try admin first
     const admin = await prisma.admin.findUnique({
       where: { id: decoded.id },
-      select: { id: true, school_id: true, name: true, email: true, role: true },
+      select: { id: true, school_id: true, name: true, email: true, role: true, token_version: true },
     })
     if (admin) {
-      req.admin = admin
+      if (decoded.v !== admin.token_version) {
+        return errorResponse(res, { message: 'Session expired — please log in again', statusCode: 401 })
+      }
+      const { token_version, ...adminData } = admin
+      req.admin = adminData
       return next()
     }
 
     // Fall back to teacher
     const teacher = await prisma.teacher.findUnique({
       where: { id: decoded.id },
-      select: { id: true, school_id: true, first_name: true, last_name: true, email: true, class_id: true },
+      select: { id: true, school_id: true, first_name: true, last_name: true, email: true, class_id: true, token_version: true },
     })
     if (teacher) {
-      req.teacher = teacher
+      if (decoded.v !== teacher.token_version) {
+        return errorResponse(res, { message: 'Session expired — please log in again', statusCode: 401 })
+      }
+      const { token_version, ...teacherData } = teacher
+      req.teacher = teacherData
       return next()
     }
 
@@ -117,6 +131,7 @@ export const protectTeacher = async (req, res, next) => {
         subject: true,
         phone: true,
         class_id: true,
+        token_version: true,
         class: { select: { id: true, name: true, section: true } },
       },
     })
@@ -125,7 +140,12 @@ export const protectTeacher = async (req, res, next) => {
       return errorResponse(res, { message: 'Teacher not found', statusCode: 401 })
     }
 
-    req.teacher = teacher
+    if (decoded.v !== teacher.token_version) {
+      return errorResponse(res, { message: 'Session expired — please log in again', statusCode: 401 })
+    }
+
+    const { token_version, ...teacherData } = teacher
+    req.teacher = teacherData
     next()
   } catch {
     return errorResponse(res, { message: 'Not authorized — invalid token', statusCode: 401 })
